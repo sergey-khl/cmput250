@@ -24,7 +24,6 @@
   const Chess_Game_Event_updateEvents = Game_Map.prototype.updateEvents;
   Game_Map.prototype.updateEvents = function() {
     Chess_Game_Event_updateEvents.apply(this, arguments);
-    console.log($gameSwitches.value(2))
     if (!$gameSwitches.value(2)) {
       this.checkEat();
     }
