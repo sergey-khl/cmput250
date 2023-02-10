@@ -7,6 +7,20 @@
 */
 
 
+/**
+ * Checks if a position coincides with a wall
+ * @param mapInfo with information on wall placement
+ * @param position [x,y] coordinates of position
+ * @returns {boolean} true if
+ */
+function isWall(mapInfo, position) {
+  const isWall = false;
+  if (mapInfo['wall']) {
+    return mapInfo['wall'].find((wall) => $gameMap.event(wall)._x === position[0] && $gameMap.event(wall)._y === position[1]);
+  }
+  return isWall;
+}
+
 (function() {
   const params = PluginManager.parameters("chess");
 
@@ -41,7 +55,7 @@
       let route = null;
 
       ids.forEach((id) => {
-  
+
         const enemyLoc = [$gameMap.event(id).x, $gameMap.event(id).y];
         if (enemy === "pawn") {
           route = this.checkEatPawn(enemyLoc, playerLoc);
@@ -69,19 +83,15 @@
   }
 
   /**
-   * Returns a route for the rook if possible, or null if not possible
+   * Returns a route for the bishop if possible, or null if not possible
    * @param startCoordinates player starting position [x, y]
    * @param requestCoordinates requested movement position [x, y]
    */
   Game_Map.prototype.bishopRoute = function(startCoordinates, requestCoordinates) {
     const mapInfo = $gameVariables.value(7);
 
-    let canMove = (Math.abs(startCoordinates[0] - requestCoordinates[0]) === Math.abs(startCoordinates[1] - requestCoordinates[1]));
-    mapInfo['wall'].forEach((wall) => {
-      if ([$gameMap.event(wall)._x, $gameMap.event(wall)._y].toString() === requestCoordinates) {
-        canMove = false;
-      }
-    });
+    let canMove = (Math.abs(startCoordinates[0] - requestCoordinates[0]) === Math.abs(startCoordinates[1] - requestCoordinates[1]))
+        && !isWall(mapInfo, requestCoordinates);
 
     if (canMove) {
       const horizontalMovement = requestCoordinates[0] - startCoordinates[0];
@@ -104,9 +114,9 @@
       }
 
       route.list = route.list.concat(finalizeRouteElements);
-      console.log(route)
       return route;
     }
+    return null;
   }
 
   /**
@@ -118,11 +128,7 @@
     const mapInfo = $gameVariables.value(7);
 
     let canMove = (startCoordinates[0] === requestCoordinates[0] || startCoordinates[1] === requestCoordinates[1])
-    mapInfo['wall'].forEach((wall) => {
-      if ([$gameMap.event(wall)._x, $gameMap.event(wall)._y].toString() === requestCoordinates) {
-        canMove = false;
-      }
-    });
+        && !isWall(mapInfo, requestCoordinates);
 
     if (canMove) {
       const horizontalMovement = requestCoordinates[0] - startCoordinates[0];
@@ -147,6 +153,7 @@
       route.list = route.list.concat(finalizeRouteElements);
       return route;
     }
+    return null;
   }
 
   // return a route for the horse if possible otherwise null
@@ -168,11 +175,7 @@
 
     for (let i = 0; i < possiblePos.length; i++) {
       if (possiblePos[i].toString() === horseEnd.toString()) {
-        mapInfo['wall'].forEach((wall) => {
-          if ([$gameMap.event(wall)._x, $gameMap.event(wall)._y].toString() === horseEnd) {
-            canGo = false;
-          }
-        })
+        canGo = !isWall(mapInfo, horseEnd);
         // setting routes. very gross i know so if you have a better idea lmk
         if (canGo) {
           switch (i) {
