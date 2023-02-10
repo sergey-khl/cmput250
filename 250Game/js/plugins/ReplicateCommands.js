@@ -1,11 +1,14 @@
-/*
-Title: Replicate Commands
-Author Ian Gauk
-
-### Info about plugin ###
-Copies the commands from all tiles with the same icon when specified in the map comments
-
-*/
+/**
+ * Title: Replicate Commands
+ * Author Ian Gauk
+ *
+ * @plugindesc Replicates event commands from a specified coordinate to all other tiles that match
+ * the specified coordinate tile
+ *
+ * @help To use, choose a tile to replicate the event commands for, note the coordinates. In the map notetags,
+ * add the following on a new line `<replicate commands:x,y>` where x and y are the coordinates of the noted
+ * tile.
+ */
 
 'use strict';
 
@@ -40,10 +43,8 @@ var ReplicateCommands = ReplicateCommands || {};
             } else {
                 const tileId = $gameMap.tileId(eventToCopy.x, eventToCopy.y, 0);
                 $dataMap.events.filter(event => !!event).forEach(event => {
-                    if (Math.abs($gameMap.tileId(event.x, event.y, 0) - tileId) < 16) { // TODO: approx
-                        event.pages = eventToCopy.pages;
-                    } else {
-                        console.log($gameMap.tileId(event.x, event.y, 0));
+                    if (Math.abs($gameMap.tileId(event.x, event.y, 0) - tileId) < 16) { // TODO: approx for autotile
+                        event.pages.forEach(page => page.list = eventToCopy.pages[0].list);
                     }
                 })
             }
