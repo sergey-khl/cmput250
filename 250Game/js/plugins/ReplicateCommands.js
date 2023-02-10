@@ -21,7 +21,7 @@ var ReplicateCommands = ReplicateCommands || {};
         $dataMap.replicateCommands = new Set();
         for (let i = 0; i < noteData.length; i++) {
             const line = noteData[i];
-            const regExCommand = line.match(/<replicate commands:(\d),(\d)>/i);
+            const regExCommand = line.match(/<replicate commands:(\d+),(\d+)>/i);
             if (regExCommand && regExCommand[1] && regExCommand[2]) {
                 $dataMap.replicateCommands.add({x: regExCommand[1], y: regExCommand[2]}); // push the icon to the commands to replicate set
             }
@@ -39,9 +39,8 @@ var ReplicateCommands = ReplicateCommands || {};
                 console.log("Tile is undefined, specify the correct coordinates")
             } else {
                 const tileId = $gameMap.tileId(eventToCopy.x, eventToCopy.y, 0);
-                console.log("TILE ID TO COPY", tileId);
                 $dataMap.events.filter(event => !!event).forEach(event => {
-                    if ($gameMap.tileId(event.x, event.y, 0) === tileId) {
+                    if (Math.abs($gameMap.tileId(event.x, event.y, 0) - tileId) < 16) { // TODO: approx
                         event.pages = eventToCopy.pages;
                     } else {
                         console.log($gameMap.tileId(event.x, event.y, 0));
