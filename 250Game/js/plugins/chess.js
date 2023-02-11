@@ -48,26 +48,37 @@ function isWall(mapInfo, position) {
   };
 
   Game_Map.prototype.checkEat = function() {
-    const playerLoc = [$gamePlayer.x, $gamePlayer.y];
-    // a little gross
-    const mapInfo = $gameVariables.value(7);
-    for (const [enemy, ids] of Object.entries(mapInfo)) {
-      let route = null;
+    if (!$gamePlayer.isMoveRouteForcing()) {
+      const playerLoc = [$gamePlayer.x, $gamePlayer.y];
+      // a little gross
+      const mapInfo = $gameVariables.value(7);
+      for (const [enemy, ids] of Object.entries(mapInfo)) {
+        let route = null;
 
-      ids.forEach((id) => {
+        ids.forEach((id) => {
 
-        const enemyLoc = [$gameMap.event(id).x, $gameMap.event(id).y];
-        if (enemy === "pawn") {
-          route = this.checkEatPawn(enemyLoc, playerLoc);
-        }
+          const enemyLoc = [$gameMap.event(id).x, $gameMap.event(id).y];
+          if (enemy === "pawn") {
+            route = this.checkEatPawn(enemyLoc, playerLoc);
+          }
 
 
-        if (route) {
-          $gameMap.event(id).forceMoveRoute(route);
-          // TODO: game end
-          //this._interpreter.setWaitMode('route');
-        }
-      })
+          if (route) {
+            $gameMap.event(id).forceMoveRoute(route);
+            $gameParty.members()[0].setHp(0) //Carlin: Kills player, Game Over
+            // TODO: game end
+            //this._interpreter.setWaitMode('route');
+          }
+
+          if (enemy === "spike" && enemyLoc[0] === playerLoc[0] && enemyLoc[1] === playerLoc[1] && $gameSwitches.value(4) == true) {
+            $gameParty.members()[0].setHp(0)
+          }
+
+          if (enemy === "pit" && enemyLoc[0] === playerLoc[0] && enemyLoc[1] === playerLoc[1]) {
+            $gameParty.members()[0].setHp(0)
+          }
+        })
+      }
     }
   }
 
