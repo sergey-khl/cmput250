@@ -64,8 +64,13 @@ function isWall(mapInfo, position) {
 
         if (route) {
           $gameMap.event(id).forceMoveRoute(route);
+      	  $gameParty.members()[0].setHp(0) //Carlin: Kills player, Game Over
           // TODO: game end
           //this._interpreter.setWaitMode('route');
+        }
+
+        if (enemy === "spike" && enemyLoc[0] === playerLoc[0] && enemyLoc[1] === playerLoc[1] && $gameSwitches.value(4) == true) {
+          $gameParty.members()[0].setHp(0)
         }
       })
     }
