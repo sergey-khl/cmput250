@@ -1,6 +1,6 @@
 [
 null,
-{"id":1,"battlerName":"","characterIndex":3,"characterName":"","classId":1,"equips":[1,1,2,3,0],"faceIndex":3,"faceName":"Nature","traits":[],"initialLevel":1,"maxLevel":99,"name":"Horse","nickname":"","note":"","profile":""},
+{"id":1,"battlerName":"","characterIndex":3,"characterName":"Nature","classId":1,"equips":[1,1,2,3,0],"faceIndex":3,"faceName":"Nature","traits":[],"initialLevel":1,"maxLevel":99,"name":"Horse","nickname":"","note":"","profile":""},
 {"id":2,"battlerName":"","characterIndex":7,"characterName":"People3","classId":2,"equips":[2,1,2,3,0],"faceIndex":7,"faceName":"People3","traits":[],"initialLevel":1,"maxLevel":99,"name":"Rook","nickname":"","note":"","profile":""},
 {"id":3,"battlerName":"","characterIndex":2,"characterName":"People3","classId":1,"equips":[0,0,0,0,0],"faceIndex":2,"faceName":"People3","traits":[],"initialLevel":1,"maxLevel":99,"name":"Bishop","nickname":"","note":"","profile":""},
 {"id":4,"battlerName":"Actor2_7","characterIndex":6,"characterName":"Actor2","classId":4,"equips":[4,0,2,3,4],"faceIndex":6,"faceName":"Actor2","traits":[],"initialLevel":1,"maxLevel":99,"name":"Lucius","nickname":"","note":"","profile":""}
