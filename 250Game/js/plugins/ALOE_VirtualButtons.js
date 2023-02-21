@@ -1452,7 +1452,6 @@ var ALOE = ALOE || {};
 
     Game_Interpreter.prototype.pluginCommand = function (command, args) {
         Alias.Game_Interpreter_pluginCommand.call(this, command, args);
-        console.log("here", args);
         if (command.toLowerCase() === "mobileui" || command.toLowerCase() === "virtualbuttons") {
             var scene = SceneManager._scene;
 
