@@ -2,7 +2,7 @@
 null,
 {"id":1,"expanded":true,"name":"MAP001","order":1,"parentId":0,"scrollX":982.8,"scrollY":553.1999999999999},
 {"id":2,"expanded":false,"name":"Hub/Tech Demo","order":5,"parentId":0,"scrollX":982.8,"scrollY":553.1999999999999},
-{"id":3,"expanded":false,"name":"Opening Cutscene","order":2,"parentId":0,"scrollX":982.8,"scrollY":553.1999999999999},
+{"id":3,"expanded":false,"name":"Opening Cutscene","order":2,"parentId":0,"scrollX":832,"scrollY":640},
 {"id":4,"expanded":false,"name":"Forest Puzzle 1","order":3,"parentId":0,"scrollX":982.8,"scrollY":553.1999999999999},
 {"id":5,"expanded":true,"name":"Zwart Throne Room","order":4,"parentId":0,"scrollX":982.8,"scrollY":553.1999999999999},
 {"id":6,"expanded":false,"name":"Intro Forest Puzzle","order":6,"parentId":0,"scrollX":982.8,"scrollY":553.1999999999999},
