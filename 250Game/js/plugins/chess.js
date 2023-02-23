@@ -1,5 +1,5 @@
 /*:
- * @author Sergey Khlynovskiy
+ * @author Sergey Khlynovskiy, Ian Gauk, Carlin Boyles
  * @plugindesc chess movement
  * 
  * @help does chess stuff
@@ -52,29 +52,48 @@ function isWall(mapInfo, position) {
       const playerLoc = [$gamePlayer.x, $gamePlayer.y];
       // a little gross
       const mapInfo = $gameVariables.value(7);
-      for (const [enemy, ids] of Object.entries(mapInfo)) {
-        let route = null;
+      for (const [entity, ids] of Object.entries(mapInfo)) {
+        let eatRoute = null;
+        let playerRoute = null;
 
         ids.forEach((id) => {
 
-          const enemyLoc = [$gameMap.event(id).x, $gameMap.event(id).y];
-          if (enemy === "pawn") {
-            route = this.checkEatPawn(enemyLoc, playerLoc);
+          const entityLoc = [$gameMap.event(id).x, $gameMap.event(id).y];
+          if (entity === "pawn") {
+            eatRoute = this.checkEatPawn(entityLoc, playerLoc);
           }
 
-
-          if (route) {
-            $gameMap.event(id).forceMoveRoute(route);
+          if (eatRoute) {
+            $gameMap.event(id).forceMoveRoute(eatRoute);
             $gameParty.members()[0].setHp(0) //Carlin: Kills player, Game Over
             // TODO: game end
             //this._interpreter.setWaitMode('route');
           }
 
-          if (enemy === "spike" && enemyLoc[0] === playerLoc[0] && enemyLoc[1] === playerLoc[1] && $gameSwitches.value(4) == true) {
+          if (entity === "convRight"  && entityLoc[0] === playerLoc[0] && entityLoc[1] === playerLoc[1]) {
+            playerRoute = this.conveyor("right");
+          }
+          if (entity === "convLeft"  && entityLoc[0] === playerLoc[0] && entityLoc[1] === playerLoc[1]) {
+            playerRoute = this.conveyor("left");
+          }
+          if (entity === "convUp"  && entityLoc[0] === playerLoc[0] && entityLoc[1] === playerLoc[1]) {
+            playerRoute = this.conveyor("up");
+          }
+          if (entity === "convDown"  && entityLoc[0] === playerLoc[0] && entityLoc[1] === playerLoc[1]) {
+            playerRoute = this.conveyor("down");
+          }
+          if (playerRoute) {
+            $gamePlayer.forceMoveRoute(playerRoute);
+            // TODO: game end
+            //this._interpreter.setWaitMode('route');
+          }
+
+
+          if (entity === "spike" && entityLoc[0] === playerLoc[0] && entityLoc[1] === playerLoc[1] && $gameSwitches.value(4) == true) {
             $gameParty.members()[0].setHp(0)
           }
 
-          if (enemy === "pit" && enemyLoc[0] === playerLoc[0] && enemyLoc[1] === playerLoc[1]) {
+          if (entity === "pit" && entityLoc[0] === playerLoc[0] && entityLoc[1] === playerLoc[1]) {
             $gameParty.members()[0].setHp(0)
           }
         })
@@ -189,30 +208,31 @@ function isWall(mapInfo, position) {
         canGo = !isWall(mapInfo, horseEnd);
         // setting routes. very gross i know so if you have a better idea lmk
         if (canGo) {
+          
           switch (i) {
             case 0:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
             case 1:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
             case 2:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
             case 3:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
             case 4:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
             case 5:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
             case 6:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
             case 7:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
           }
           return route;
@@ -221,6 +241,25 @@ function isWall(mapInfo, position) {
       }
     }
     return route;
+  }
+
+  Game_Map.prototype.conveyor = function(dir) {
+    route = null;
+    switch (dir) {
+      case "right":
+        route = {list: [{code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+        break;
+      case "left":
+        route = {list: [{code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+        break;
+      case "up":
+        route = {list: [{code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+        break;
+      case "down":
+        route = {list: [{code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+        break;
+    }
+    return route
   }
 
   // here we can get rid of enemies so an invisible pawn can't eat the player

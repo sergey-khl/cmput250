@@ -44,6 +44,7 @@ var ReplicateCommands = ReplicateCommands || {};
                 for (let x = 0; x < $dataMap.width; x++) {
                     for (let y = 0; y < $dataMap.height; y++) {
                         if (Math.abs($gameMap.tileId(x, y, 0) - tileId) < 16) {
+                          
                             let event = $dataMap.events.filter(event => !!event).find(event => x === event.x && y === event.y)
                             if (event) {
                                 event.pages.forEach(page => page.list = eventToCopy.pages[0].list);
