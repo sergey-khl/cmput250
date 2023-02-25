@@ -31,7 +31,6 @@ var ReplicateCommands = ReplicateCommands || {};
         }
 
         $dataMap.replicateCommands.forEach(command => {
-            console.log(command.x, command.y)
             const x = parseInt(command.x);
             const y = parseInt(command.y);
 
@@ -42,11 +41,23 @@ var ReplicateCommands = ReplicateCommands || {};
                 console.log("Tile is undefined, specify the correct coordinates")
             } else {
                 const tileId = $gameMap.tileId(eventToCopy.x, eventToCopy.y, 0);
-                $dataMap.events.filter(event => !!event).forEach(event => {
-                    if (Math.abs($gameMap.tileId(event.x, event.y, 0) - tileId) < 16) { // TODO: approx for autotile
-                        event.pages.forEach(page => page.list = eventToCopy.pages[0].list);
+                for (let x = 0; x < $dataMap.width; x++) {
+                    for (let y = 0; y < $dataMap.height; y++) {
+                        if (Math.abs($gameMap.tileId(x, y, 0) - tileId) < 16) {
+                            let event = $dataMap.events.filter(event => !!event).find(event => x === event.x && y === event.y)
+                            if (event) {
+                                event.pages.forEach(page => page.list = eventToCopy.pages[0].list);
+                            } else {
+                                let copiedEvent = {...eventToCopy};
+                                copiedEvent.id = Math.max(...$dataMap.events.filter(event => !!event).map(event => event.id)) + 1;
+                                copiedEvent.x = x;
+                                copiedEvent.y = y;
+                                $dataMap.events[copiedEvent.id] = copiedEvent;
+                            }
+                        }
                     }
-                })
+                }
+                console.log($dataMap.events);
             }
         })
     };
