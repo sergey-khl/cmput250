@@ -30,6 +30,7 @@ function isWall(mapInfo, position) {
   Game_Player.prototype.performTransfer = function() {
     Chess_Game_On_Load.call(this);
     $gamePlayer.setThrough(false);
+    $gameVariables.setValue(7, {}); // clear map info game var
     try {
       let mapInfo = JSON.parse($dataMap.note.split('/')[0]);
       $gameVariables.setValue(7, mapInfo);
@@ -169,6 +170,7 @@ function isWall(mapInfo, position) {
 
   // return a route for the horse if possible otherwise null
   Game_Map.prototype.horseRoute = function(horseStart, horseEnd) {
+    console.log(horseStart, horseEnd);
     const mapInfo = $gameVariables.value(7);
     const possiblePos = [
       [horseStart[0]-2, horseStart[1]+1],
