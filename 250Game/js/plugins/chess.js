@@ -30,11 +30,14 @@
  * @returns {boolean} true if
  */
 function isWall(position) {
-  return $gameMap.eventsXy(position[0], position[1])[0].isWall;
+  return !!$gameMap.eventsXy(position[0], position[1])[0].isWall;
 }
 
 const LOAD_EVENT = 6;
 const SPIKE_ON_EVENT = 22;
+const HORSE_SWITCH = 18;
+const BISHOP_SWITCH = 20;
+const ROOK_SWITCH = 19;
 
 (function() {
   const params = PluginManager.parameters("chess");
@@ -72,7 +75,6 @@ const SPIKE_ON_EVENT = 22;
   };
 
   Game_Map.prototype.updateChessEvents = function() {
-    const gameMap = this;
     this.events().forEach(event => {
       const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
       const touchingPlayer = event.x === playerCoordinates[0] && event.y === playerCoordinates[1];
@@ -123,18 +125,30 @@ const SPIKE_ON_EVENT = 22;
     }
   }
 
+
+  Game_Character.prototype.moveChess = function(destinationCoordinates) {
+    let movementFunction;
+    if ($gameSwitches.value(HORSE_SWITCH)) {  movementFunction = this.moveKnight; }
+    else if ($gameSwitches.value(ROOK_SWITCH)) {movementFunction = this.moveRook; }
+    else if ($gameSwitches.value(BISHOP_SWITCH)) { movementFunction = this.moveBishop; }
+    if (movementFunction) {
+      return movementFunction.call(this, destinationCoordinates)
+    } else {
+      return false;
+    }
+  }
+
   /**
-   * Returns a route for the bishop if possible, or null if not possible
-   * @param startCoordinates player starting position [x, y]
+   * Moves a route for the bishop if possible, or null if not possible
    * @param requestCoordinates requested movement position [x, y]
    */
-  Game_Map.prototype.bishopRoute = function(startCoordinates, requestCoordinates) {
-    let canMove = (Math.abs(startCoordinates[0] - requestCoordinates[0]) === Math.abs(startCoordinates[1] - requestCoordinates[1]))
+  Game_Character.prototype.moveBishop = function(requestCoordinates) {
+    let canMove = (Math.abs(this.x - requestCoordinates[0]) === Math.abs(this.y - requestCoordinates[1]))
         && !isWall(requestCoordinates);
 
     if (canMove) {
-      const horizontalMovement = requestCoordinates[0] - startCoordinates[0];
-      const verticalMovement = startCoordinates[1] - requestCoordinates[1]; // RPG Maker 0,0 top left
+      const horizontalMovement = requestCoordinates[0] - this.x;
+      const verticalMovement = this.y - requestCoordinates[1]; // RPG Maker 0,0 top left
 
       const route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}], repeat: false, skippable: false};
       let routeCode;
@@ -153,23 +167,24 @@ const SPIKE_ON_EVENT = 22;
       }
 
       route.list = route.list.concat(finalizeRouteElements);
-      return route;
+      this.forceMoveRoute(route);
+      $gameMap._interpreter.setWaitMode("route");
+      return true;
     }
-    return null;
+    return false;
   }
 
   /**
    * Returns a route for the rook if possible, or null if not possible
-   * @param startCoordinates player starting position [x, y]
    * @param requestCoordinates requested movement position [x, y]
    */
-  Game_Map.prototype.rookRoute = function(startCoordinates, requestCoordinates) {
-    let canMove = (startCoordinates[0] === requestCoordinates[0] || startCoordinates[1] === requestCoordinates[1])
+  Game_Character.prototype.moveRook = function(requestCoordinates) {
+    let canMove = (this.x === requestCoordinates[0] || this.y === requestCoordinates[1])
         && !isWall(requestCoordinates);
 
     if (canMove) {
-      const horizontalMovement = requestCoordinates[0] - startCoordinates[0];
-      const verticalMovement = startCoordinates[1] - requestCoordinates[1]; // RPG Maker 0,0 top left
+      const horizontalMovement = requestCoordinates[0] - this.x;
+      const verticalMovement = this.y - requestCoordinates[1]; // RPG Maker 0,0 top left
 
       const route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}], repeat: false, skippable: false};
       let routeCode;
@@ -188,24 +203,24 @@ const SPIKE_ON_EVENT = 22;
       }
 
       route.list = route.list.concat(finalizeRouteElements);
-      return route;
+      this.forceMoveRoute(route);
+      $gameMap._interpreter.setWaitMode("route");
+      return true;
     }
-    return null;
+    return false;
   }
 
   // return a route for the horse if possible otherwise null
-  Game_Map.prototype.horseRoute = function(horseStart, horseEnd) {
-    console.log(horseStart, horseEnd);
-    const mapInfo = $gameVariables.value(15);
+  Game_Character.prototype.moveKnight = function(horseEnd) {
     const possiblePos = [
-      [horseStart[0]-2, horseStart[1]+1],
-      [horseStart[0]-2, horseStart[1]-1],
-      [horseStart[0]-1, horseStart[1]+2],
-      [horseStart[0]-1, horseStart[1]-2],
-      [horseStart[0]+1, horseStart[1]+2],
-      [horseStart[0]+1, horseStart[1]-2],
-      [horseStart[0]+2, horseStart[1]+1],
-      [horseStart[0]+2, horseStart[1]-1]
+      [this.x-2, this.y+1],
+      [this.x-2, this.y-1],
+      [this.x-1, this.y+2],
+      [this.x-1, this.y-2],
+      [this.x+1, this.y+2],
+      [this.x+1, this.y-2],
+      [this.x+2, this.y+1],
+      [this.x+2, this.y-1]
     ];
 
     let canGo = true;
@@ -242,11 +257,13 @@ const SPIKE_ON_EVENT = 22;
               route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
               break;
           }
-          return route;
+          this.forceMoveRoute(route);
+          $gameMap._interpreter.setWaitMode("route");
+          return true;
         }
         canGo = true;
       }
     }
-    return route;
+    return false;
   }
 })();
