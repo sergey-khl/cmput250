@@ -62,10 +62,19 @@ var ReplicateCommands = ReplicateCommands || {};
         })
     };
 
+    ReplicateCommands.findProperPageIndex = Game_Event.prototype.findProperPageIndex;
+    Game_Event.prototype.findProperPageIndex = function () {
+        if (!this.event()) {
+            DataManager.processCommandReplication();
+            $gameMap.setupEvents();
+        }
+        return ReplicateCommands.findProperPageIndex.call(this);
+    }
+
     // Called on save and on map refresh
-    ReplicateCommands.Transfer_Player = Game_Player.prototype.performTransfer;
+    ReplicateCommands.transferPlayer = Game_Player.prototype.performTransfer;
     Game_Player.prototype.performTransfer = function () {
         if ($dataMap) DataManager.processCommandReplication();
-        ReplicateCommands.Transfer_Player.call(this);
+        ReplicateCommands.transferPlayer.call(this);
     };
 }());
