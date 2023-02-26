@@ -7,5 +7,5 @@ null,
 {"id":5,"expanded":true,"name":"Zwart Throne Room","order":3,"parentId":0,"scrollX":981.5999999999999,"scrollY":547.8},
 {"id":6,"expanded":true,"name":"Intro Forest Puzzle","order":4,"parentId":0,"scrollX":981.5999999999999,"scrollY":547.8},
 {"id":7,"expanded":true,"name":"Bogdan's Study (Hub)","order":7,"parentId":0,"scrollX":972,"scrollY":892.1999999999999},
-{"id":8,"expanded":false,"name":"Forest Spawn Location","order":6,"parentId":6,"scrollX":981.5999999999999,"scrollY":547.8}
+{"id":8,"expanded":false,"name":"Forest Spawn Location","order":6,"parentId":4,"scrollX":981.5999999999999,"scrollY":547.8}
 ]
