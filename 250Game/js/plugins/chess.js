@@ -38,6 +38,7 @@ const SPIKE_ON_EVENT = 22;
 const HORSE_SWITCH = 18;
 const BISHOP_SWITCH = 20;
 const ROOK_SWITCH = 19;
+const HOVER_ICON = 31;
 
 (function() {
   const params = PluginManager.parameters("chess");
@@ -57,8 +58,10 @@ const ROOK_SWITCH = 19;
     comments.forEach((comment) => {
       if (comment.match(/<chess:wall>/i)) {
         this.isWall = true;
-      } else if (comment.match(/<chess:spike>/i)) {
-        this.isSpike = true;
+      } else if (comment.match(/<chess:spike>/i)) { // TODO: add timing here instead of in event
+        this.spike = { opposite: false };
+      } else if (comment.match(/<chess:spike:opp>/i)) {
+        this.spike = { opposite: true }
       } else if (comment.match(/<chess:pit>/i)) {
         this.pit = { isActivated: false }
       } else if (comment.match(/<chess:pawn>/i)) {
@@ -67,12 +70,19 @@ const ROOK_SWITCH = 19;
     });
   };
 
+  Game_Event.prototype.isSpike = function() {
+    return !!this.spike;
+  }
 
   const Chess_Update_Events = Game_Map.prototype.updateEvents;
   Game_Map.prototype.updateEvents = function() {
     Chess_Update_Events.apply(this, arguments);
     this.updateChessEvents.apply(this, arguments);
   };
+
+  function spikeOn(event) {
+    return event.spike.opposite ? !$gameSwitches.value(SPIKE_ON_EVENT) : $gameSwitches.value(SPIKE_ON_EVENT);
+  }
 
   Game_Map.prototype.updateChessEvents = function() {
     this.events().forEach(event => {
@@ -85,7 +95,7 @@ const ROOK_SWITCH = 19;
         event.pit.isActivated = true;
       }
       event.isTouchingPlayer = touchingPlayer;
-      if (event.isSpike && event.isTouchingPlayer && $gameSwitches.value(SPIKE_ON_EVENT)) {
+      if (event.isSpike() && event.isTouchingPlayer && spikeOn(event)) {
         $gameTemp.reserveCommonEvent(LOAD_EVENT);
       } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
         $gameTemp.reserveCommonEvent(LOAD_EVENT);
@@ -100,6 +110,7 @@ const ROOK_SWITCH = 19;
     });
   }
 
+  // TODO: fix this, it does not actually work...
   Game_Map.prototype.pawnAttack = function(event, pawnRoute) {
     event.forceMoveRoute(pawnRoute);
     while (event.isMoveRouteForcing()) {
@@ -125,6 +136,73 @@ const ROOK_SWITCH = 19;
     }
   }
 
+  Game_Character.prototype.highlightChessMoves = function() {
+    let highlightFunction;
+    if ($gameSwitches.value(HORSE_SWITCH)) { highlightFunction = this.highlightKnight; }
+    else if ($gameSwitches.value(ROOK_SWITCH)) { highlightFunction = this.highlightRook; }
+    else if ($gameSwitches.value(BISHOP_SWITCH)) { highlightFunction = this.highlightBishop; }
+    if (highlightFunction) { highlightFunction.call(this) }
+  }
+
+  Game_Character.prototype.isValidBishopEvent = function(event) {
+    return (Math.abs(this.x - event.x) === Math.abs(this.y - event.y)) && !event.isWall
+        && (this.x !== event.x && this.y !== event.y);
+  }
+
+  Game_Character.prototype.isValidRookEvent = function(event) {
+    return (this.x === event.x && this.y !== event.y) || (this.x !== event.x && this.y === event.y) && !event.isWall;
+  }
+
+  Game_Character.prototype.isValidKnightEvent = function(event) {
+    const validKnightMoves = [
+      [this.x - 2, this.y + 1],
+      [this.x - 2, this.y - 1],
+      [this.x - 1, this.y + 2],
+      [this.x - 1, this.y - 2],
+      [this.x + 1, this.y + 2],
+      [this.x + 1, this.y - 2],
+      [this.x + 2, this.y + 1],
+      [this.x + 2, this.y - 1]
+    ];
+    return validKnightMoves.some(move => event.x === move[0] && event.y === move[1]) && !event.isWall;
+  }
+
+  function highlight(event) {
+    if (!event.mouseSettings.hoverIcon) {
+      event.mouseSettings.hoverIcon = HOVER_ICON;
+    }
+  }
+
+  function removeChessHighlight(event) {
+    if (event.mouseSettings.hoverIcon) {
+      event.mouseSettings.hoverIcon = undefined;
+    }
+  }
+
+  Game_Character.prototype.highlightBishop = function() {
+    let definedEvents = $gameMap.events().filter(event => !!event);
+    definedEvents.filter(event => this.isValidBishopEvent(event)).forEach(highlight);
+    definedEvents.filter(event => !this.isValidBishopEvent(event)).forEach(removeChessHighlight);
+  }
+
+  Game_Character.prototype.highlightRook = function() {
+    let definedEvents = $gameMap.events().filter(event => !!event);
+    definedEvents.filter(event => this.isValidRookEvent(event)).forEach(highlight);
+    definedEvents.filter(event => !this.isValidRookEvent(event)).forEach(removeChessHighlight);
+  }
+
+  Game_Character.prototype.highlightKnight = function() {
+    let definedEvents = $gameMap.events().filter(event => !!event);
+    definedEvents.filter(event => this.isValidKnightEvent(event)).forEach(highlight);
+    definedEvents.filter(event => !this.isValidKnightEvent(event)).forEach(removeChessHighlight);
+  }
+
+  const Chess_Route_End = Game_Character.prototype.processRouteEnd;
+  Game_Character.prototype.processRouteEnd = function() {
+    console.log("PROCESS ROUTE END");
+    Chess_Route_End.call(this);
+    this.highlightChessMoves();
+  }
 
   Game_Character.prototype.moveChess = function(destinationCoordinates) {
     let movementFunction;
@@ -132,7 +210,8 @@ const ROOK_SWITCH = 19;
     else if ($gameSwitches.value(ROOK_SWITCH)) {movementFunction = this.moveRook; }
     else if ($gameSwitches.value(BISHOP_SWITCH)) { movementFunction = this.moveBishop; }
     if (movementFunction) {
-      return movementFunction.call(this, destinationCoordinates)
+      movementFunction.call(this, destinationCoordinates);
+      return true;
     } else {
       return false;
     }
