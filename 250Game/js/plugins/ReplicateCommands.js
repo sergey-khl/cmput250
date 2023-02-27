@@ -43,10 +43,10 @@ var ReplicateCommands = ReplicateCommands || {};
                 const tileId = $gameMap.tileId(eventToCopy.x, eventToCopy.y, 0);
                 for (let x = 0; x < $dataMap.width; x++) {
                     for (let y = 0; y < $dataMap.height; y++) {
-                        if (Math.abs($gameMap.tileId(x, y, 0) - tileId) < 16) {
+                        if (Math.abs($gameMap.tileId(x, y, 0) - tileId) < 16 && !(x === eventToCopy.x && y === eventToCopy.y)) {
                             let event = $dataMap.events.filter(event => !!event).find(event => x === event.x && y === event.y)
                             if (event) {
-                                event.pages.forEach(page => page.list = eventToCopy.pages[0].list);
+                                event.pages.forEach(page => page.list = eventToCopy.pages[0].list.concat(page.list)); // could use index
                             } else {
                                 let copiedEvent = {...eventToCopy};
                                 copiedEvent.id = Math.max(...$dataMap.events.filter(event => !!event).map(event => event.id)) + 1;
@@ -62,10 +62,19 @@ var ReplicateCommands = ReplicateCommands || {};
         })
     };
 
-    // Called on map init
-    ReplicateCommands.Game_Map_Setup = Game_Map.prototype.setup;
-    Game_Map.prototype.setup = function (mapId) {
+    ReplicateCommands.findProperPageIndex = Game_Event.prototype.findProperPageIndex;
+    Game_Event.prototype.findProperPageIndex = function () {
+        if (!this.event()) {
+            DataManager.processCommandReplication();
+            $gameMap.setupEvents();
+        }
+        return ReplicateCommands.findProperPageIndex.call(this);
+    }
+
+    // Called on save and on map refresh
+    ReplicateCommands.transferPlayer = Game_Player.prototype.performTransfer;
+    Game_Player.prototype.performTransfer = function () {
         if ($dataMap) DataManager.processCommandReplication();
-        ReplicateCommands.Game_Map_Setup.call(this, mapId);
+        ReplicateCommands.transferPlayer.call(this);
     };
 }());
