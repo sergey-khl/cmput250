@@ -1,11 +1,12 @@
 [
 null,
 {"id":1,"expanded":true,"name":"MAP001","order":1,"parentId":0,"scrollX":819,"scrollY":516},
-{"id":2,"expanded":false,"name":"Hub/Tech Demo","order":4,"parentId":7,"scrollX":819,"scrollY":516},
-{"id":3,"expanded":false,"name":"Opening Cutscene","order":5,"parentId":0,"scrollX":981.5999999999999,"scrollY":547.8},
-{"id":4,"expanded":true,"name":"Forest Puzzle 1","order":8,"parentId":8,"scrollX":819,"scrollY":516},
-{"id":5,"expanded":true,"name":"Zwart Throne Room","order":2,"parentId":0,"scrollX":819,"scrollY":516},
-{"id":6,"expanded":true,"name":"Intro Forest Puzzle","order":7,"parentId":8,"scrollX":819,"scrollY":516},
-{"id":7,"expanded":true,"name":"Bogdan's Study (Hub)","order":3,"parentId":0,"scrollX":811,"scrollY":668},
-{"id":8,"expanded":true,"name":"Forest Spawn Location","order":6,"parentId":0,"scrollX":819,"scrollY":516}
+{"id":2,"expanded":false,"name":"Hub/Tech Demo","order":4,"parentId":7,"scrollX":981.5999999999999,"scrollY":547.8},
+{"id":3,"expanded":false,"name":"Opening Cutscene","order":5,"parentId":0,"scrollX":832,"scrollY":640},
+{"id":4,"expanded":true,"name":"Forest Puzzle 1","order":9,"parentId":8,"scrollX":832,"scrollY":640},
+{"id":5,"expanded":true,"name":"Zwart Throne Room","order":2,"parentId":0,"scrollX":981.5999999999999,"scrollY":547.8},
+{"id":6,"expanded":true,"name":"Intro Forest Puzzle","order":7,"parentId":8,"scrollX":981.5999999999999,"scrollY":547.8},
+{"id":7,"expanded":true,"name":"Bogdan's Study (Hub)","order":3,"parentId":0,"scrollX":972,"scrollY":667.8},
+{"id":8,"expanded":true,"name":"Forest Spawn Location","order":6,"parentId":0,"scrollX":981.5999999999999,"scrollY":547.8},
+{"id":9,"expanded":false,"name":"Forest Dialogue 1","order":8,"parentId":8,"scrollX":832,"scrollY":640}
 ]
