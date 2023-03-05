@@ -39,6 +39,7 @@ const HORSE_SWITCH = 18;
 const BISHOP_SWITCH = 20;
 const ROOK_SWITCH = 19;
 const HOVER_ICON = 31;
+const HOVER_ICON_COMMENT = "<hover_icon:" + HOVER_ICON + ">";
 
 (function() {
   const params = PluginManager.parameters("chess");
@@ -170,6 +171,7 @@ const HOVER_ICON = 31;
   function highlight(event) {
     if (!event.mouseSettings.hoverIcon) {
       event.mouseSettings.hoverIcon = HOVER_ICON;
+      event.event().pages.forEach(page => page.list.push({"code":108,"indent":0,"parameters":[HOVER_ICON_COMMENT]}))
     }
   }
 
@@ -197,9 +199,14 @@ const HOVER_ICON = 31;
     definedEvents.filter(event => !this.isValidKnightEvent(event)).forEach(removeChessHighlight);
   }
 
+  const Chess_On_Map_Loaded = Scene_Map.prototype.onMapLoaded
+  Scene_Map.prototype.onMapLoaded = function() {
+    Chess_On_Map_Loaded.call(this);
+    $gamePlayer.highlightChessMoves();
+  }
+
   const Chess_Route_End = Game_Character.prototype.processRouteEnd;
   Game_Character.prototype.processRouteEnd = function() {
-    console.log("PROCESS ROUTE END");
     Chess_Route_End.call(this);
     this.highlightChessMoves();
   }
