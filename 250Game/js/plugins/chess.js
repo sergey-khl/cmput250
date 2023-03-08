@@ -70,6 +70,9 @@ const DOWN = Game_Character.ROUTE_MOVE_DOWN;
 const LEFT = Game_Character.ROUTE_MOVE_LEFT;
 const RIGHT = Game_Character.ROUTE_MOVE_RIGHT;
 
+// --- OPEN STATES GATE --- //
+const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
+
 /**
  * Checks if a position coincides with a wall
  * @param position [x,y] coordinates of position
@@ -93,6 +96,8 @@ function getRandomInt(max, min = 0) {
   let spikeEvents = [];
   let pitEvents = [];
   let conveyorBeltEvents = [];
+  let gateEvents = [];
+  let buttonEvents = [];
 
   const Chess_Game_Map_Setup = Game_Map.prototype.setup;
   Game_Map.prototype.setup = function () {
@@ -104,6 +109,8 @@ function getRandomInt(max, min = 0) {
     spikeEvents = [];
     pitEvents = [];
     conveyorBeltEvents = [];
+    gateEvents = [];
+    buttonEvents = [];
     Chess_Game_Map_Setup.apply(this, arguments);
   }
 
@@ -114,6 +121,8 @@ function getRandomInt(max, min = 0) {
   Game_Map.prototype.pits = function() { return pitEvents };
   Game_Map.prototype.spikes = function() { return spikeEvents };
   Game_Map.prototype.conveyors = function() { return conveyorBeltEvents };
+  Game_Map.prototype.gates = function() { return gateEvents };
+  Game_Map.prototype.buttons = function() { return buttonEvents };
   Game_Map.prototype.activeFlameTimeouts = function() { return activeFlameTimeouts };
 
   const Chess_Setup_Page = Game_Event.prototype.setupPage;
@@ -179,6 +188,24 @@ function getRandomInt(max, min = 0) {
         } else {
           flameEvents[flameGroup].push(this);
         }
+      } else if (comment.match(/<chess:button:([a-d])>/i)) {
+        const buttonGroup = comment.match(/<chess:button:([a-d])>/i)[1];
+        this.button = {
+          activated: false,
+          group: buttonGroup.toUpperCase()
+        }
+        $gameMap.buttons().push(this);
+      } else if (comment.match(/<chess:gate:([a-d]):?([1-4]?)>/i)) {
+        let match = comment.match(/<chess:gate:([a-d]):?([1-4])?>/i);
+        const gateGroup = match[1];
+        let requiredNumButtonsPressed = parseInt(match[2]);
+        if (isNaN(requiredNumButtonsPressed)) { requiredNumButtonsPressed = 1; }
+        this.gate = {
+          state: 0,
+          group: gateGroup.toUpperCase(),
+          requiredNumberButtonsPressed: requiredNumButtonsPressed
+        }
+        $gameMap.gates().push(this);
       }
     });
   };
@@ -308,6 +335,23 @@ function getRandomInt(max, min = 0) {
     })
   }
 
+  Game_Map.prototype.checkButtonActivation = function() {
+    this.buttons().filter(buttonEvent => !buttonEvent.button.activated).forEach(buttonEvent => {
+      const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
+      buttonEvent.isTouchingPlayer = buttonEvent.x === playerCoordinates[0] && buttonEvent.y === playerCoordinates[1];
+
+      if (buttonEvent.isTouchingPlayer) {
+        buttonEvent.button.activated = true;
+        this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
+          if (gateEventToActivate.gate.requiredNumberButtonsPressed > gateEventToActivate.gate.state) {
+            gateEventToActivate.gate.state++;
+            $gameSelfSwitches.setValue([this.mapId(), gateEventToActivate._eventId, OPEN_STATES[gateEventToActivate.gate.state]], true);
+          }
+        });
+      }
+    })
+  }
+
   Game_Map.prototype.updateChessEvents = function() {
     tickCounter++;
     if (tickCounter % 50 === 0) {
@@ -315,6 +359,7 @@ function getRandomInt(max, min = 0) {
     }
     this.checkSpikeDeath();
     this.checkConveyorBeltMovement();
+    this.checkButtonActivation();
     this.checkFlameDeath();
     this.updatePitTraps();
   }
