@@ -45,13 +45,15 @@ var ReplicateCommands = ReplicateCommands || {};
                     for (let y = 0; y < $dataMap.height; y++) {
                         if (Math.abs($gameMap.tileId(x, y, 0) - tileId) < 16 && !(x === eventToCopy.x && y === eventToCopy.y)) {
                             let event = $dataMap.events.filter(event => !!event).find(event => x === event.x && y === event.y)
-                            if (event) {
+                            if (event && !event.isReplicated) {
                                 event.pages.forEach(page => page.list = eventToCopy.pages[0].list.concat(page.list)); // could use index
+                                event.isReplicated = true;
                             } else {
                                 let copiedEvent = {...eventToCopy};
                                 copiedEvent.id = Math.max(...$dataMap.events.filter(event => !!event).map(event => event.id)) + 1;
                                 copiedEvent.x = x;
                                 copiedEvent.y = y;
+                                copiedEvent.isReplicated = true;
                                 $dataMap.events[copiedEvent.id] = copiedEvent;
                             }
                         }
