@@ -87,18 +87,34 @@ function getRandomInt(max, min = 0) {
   const params = PluginManager.parameters("chess");
 
   let tickCounter = 0;
-  const flameEvents = [];
-  const wallEvents = [];
-  const spikeEvents = [];
-  const pitEvents = [];
-  const conveyorBeltEvents = [];
-  Game_Map.prototype.flames = function() { return flameEvents };
+  let flameEvents = Array(10);
+  let activeFlameTimeouts = [];
+  let wallEvents = [];
+  let spikeEvents = [];
+  let pitEvents = [];
+  let conveyorBeltEvents = [];
+
+  const Chess_Game_Map_Setup = Game_Map.prototype.setup;
+  Game_Map.prototype.setup = function () {
+    this.resetAllFlames();
+    tickCounter = 0;
+    flameEvents = Array(10);
+    activeFlameTimeouts = [];
+    wallEvents = [];
+    spikeEvents = [];
+    pitEvents = [];
+    conveyorBeltEvents = [];
+    Chess_Game_Map_Setup.apply(this, arguments);
+  }
+
+
+  Game_Map.prototype.flameGroups = function() { return flameEvents.filter(group => !!group); };
+  Game_Map.prototype.allFlames = function () { return Array.prototype.concat.apply([], flameEvents).filter(event => !!event); }
   Game_Map.prototype.walls = function() { return wallEvents };
   Game_Map.prototype.pits = function() { return pitEvents };
   Game_Map.prototype.spikes = function() { return spikeEvents };
   Game_Map.prototype.conveyors = function() { return conveyorBeltEvents };
-
-
+  Game_Map.prototype.activeFlameTimeouts = function() { return activeFlameTimeouts };
 
   const Chess_Setup_Page = Game_Event.prototype.setupPage;
   Game_Event.prototype.setupPage = function() {
@@ -137,7 +153,9 @@ function getRandomInt(max, min = 0) {
       } else if (comment.match(/<chess:conveyor:down>/i)) {
         this.conveyor = { direction: DOWN }
         $gameMap.conveyors().push(this);
-      } else if (comment.match(/<chess:flame>/i)) {
+      } else if (comment.match(/<chess:flame:?(\d*)>/i)) {
+        let flameGroup = parseInt(comment.match(/<chess:flame:?(\d*)>/i)[1]);
+        if (isNaN(flameGroup)) { flameGroup = 0; }
         this.flame = {
           /**
            * Dictates if the flame is currently on fire
@@ -156,22 +174,14 @@ function getRandomInt(max, min = 0) {
            */
           triggering: false
         };
-        $gameMap.flames().push(this);
+        if (!flameEvents[flameGroup]) {
+          flameEvents[flameGroup] = [this];
+        } else {
+          flameEvents[flameGroup].push(this);
+        }
       }
     });
   };
-
-  Game_Event.prototype.isSpike = function() {
-    return !!this.spike;
-  }
-
-  Game_Event.prototype.isConveyorBelt = function() {
-    return !!this.conveyor;
-  }
-
-  Game_Event.prototype.isFlame = function() {
-    return !!this.flame;
-  }
 
   const Chess_Update_Events = Game_Map.prototype.updateEvents;
   Game_Map.prototype.updateEvents = function() {
@@ -184,41 +194,72 @@ function getRandomInt(max, min = 0) {
   }
 
   Game_Map.prototype.updateFlameActivations = function() {
-    if (!flameEvents.some(event => event.flame.triggered || event.flame.triggering)) { // randomly select the next flame to activate
-      const unTriggeredFlames = this.flames().filter(event => !event.flame.triggered && !event.flame.triggering && !event.flame.active && !event.flame.activating);
-      if (unTriggeredFlames.length) {
-        unTriggeredFlames[getRandomInt(unTriggeredFlames.length)].triggerFlame();
+    this.flameGroups().forEach(flameGroup => {
+      if (!flameGroup.some(event => event.flame.triggered || event.flame.triggering)) { // randomly select the next flame to activate
+        const unTriggeredFlames = flameGroup.filter(event => !event.flame.triggered && !event.flame.triggering && !event.flame.active && !event.flame.activating);
+        if (unTriggeredFlames.length) {
+          unTriggeredFlames[getRandomInt(unTriggeredFlames.length)].triggerFlame();
+        }
       }
-    }
-    const flamesToActivate = this.flames().filter(event => event.flame.triggered && !event.flame.active && !event.flame.activating);
-    flamesToActivate.forEach(event => event.activateFlame());
+      const flamesToActivate = flameGroup.filter(event => event.flame.triggered && !event.flame.active && !event.flame.activating);
+      flamesToActivate.forEach(event => event.activateFlame());
+    });
   }
 
   Game_Event.prototype.triggerFlame = function() {
     this.flame.triggering = true;
-    setTimeout(() => {
+    const timeoutIdTriggering = setTimeout(() => {
       this.setImage(SUN_FLARE_IMAGE.characterName, SUN_FLARE_IMAGE.characterIndex);
       this.flame.triggered = true;
       this.flame.triggering = false;
       AudioManager.playSe(FIRE_TRIGGERED_SE);
+      const index = $gameMap.activeFlameTimeouts().indexOf(timeoutIdTriggering);
+      $gameMap.activeFlameTimeouts().splice(index, 1);
     }, getRandomInt(3000, 1000));
+    $gameMap.activeFlameTimeouts().push(timeoutIdTriggering);
   }
 
   Game_Event.prototype.activateFlame = function() {
     this.flame.activating = true;
-    setTimeout(() => {
+    const timeoutIdActivating = setTimeout(() => {
       this.flame.triggered = false;
       this.flame.active = true;
       AudioManager.stopSe()
       AudioManager.playSe(FLAME_ACTIVE_SE);
       this.setImage(FIRE_IMAGE.characterName, FIRE_IMAGE.characterIndex);
-      setTimeout(() => {
+      const timeoutIdActive = setTimeout(() => {
         this.setImage('', 0);
         this.flame.active = false;
         this.flame.activating = false;
         this.setTileImage(SUN_FLARE_IMAGE.characterName, 3, 5);
+        const index = $gameMap.activeFlameTimeouts().indexOf(timeoutIdActive);
+        $gameMap.activeFlameTimeouts().splice(index, 1);
       }, 3000);
+      $gameMap.activeFlameTimeouts().push(timeoutIdActive);
+      const index = $gameMap.activeFlameTimeouts().indexOf(timeoutIdActivating);
+      $gameMap.activeFlameTimeouts().splice(index, 1);
     }, 3000);
+    $gameMap.activeFlameTimeouts().push(timeoutIdActivating);
+  }
+
+  Game_Map.prototype.resetAllFlames = function() {
+    if (this.activeFlameTimeouts()) {
+      AudioManager.stopSe();
+      this.activeFlameTimeouts().forEach(timeoutId => clearTimeout(timeoutId));
+    }
+  }
+
+  Game_Map.prototype.checkFlameDeath = function() {
+    const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
+
+    this.allFlames().forEach(flameEvent => {
+      flameEvent.isTouchingPlayer = flameEvent.x === playerCoordinates[0] && flameEvent.y === playerCoordinates[1];
+
+      if (flameEvent.isTouchingPlayer && flameEvent.flame.active) {
+        AudioManager.playSe(FIRE_BURN_SE);
+        $gameTemp.reserveCommonEvent(LOAD_EVENT);
+      }
+    });
   }
 
   Game_Map.prototype.checkSpikeDeath = function() {
@@ -242,19 +283,6 @@ function getRandomInt(max, min = 0) {
 
       if (conveyorBeltEvent.isTouchingPlayer && !$gamePlayer.isMoveRouteForcing()) {
         conveyorBeltEvent.activateConveyorBelt();
-      }
-    });
-  }
-
-  Game_Map.prototype.checkFlameDeath = function() {
-    const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
-
-    this.flames().forEach(flameEvent => {
-      flameEvent.isTouchingPlayer = flameEvent.x === playerCoordinates[0] && flameEvent.y === playerCoordinates[1];
-
-      if (flameEvent.isTouchingPlayer && flameEvent.flame.active) {
-        AudioManager.playSe(FIRE_BURN_SE);
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
       }
     });
   }
@@ -285,7 +313,6 @@ function getRandomInt(max, min = 0) {
     if (tickCounter % 50 === 0) {
       this.updateFlameActivations();
     }
-
     this.checkSpikeDeath();
     this.checkConveyorBeltMovement();
     this.checkFlameDeath();
@@ -309,9 +336,6 @@ function getRandomInt(max, min = 0) {
     if (highlightFunction) { highlightFunction.call(this) }
   }
 
-  // Game_Map.prototype.removeAllChessHighlight = function() {
-  //   this.events().forEach(event => removeChessHighlight(event));
-  // }
 
   Game_Character.prototype.isValidBishopEvent = function(event) {
     return (Math.abs(this.x - event.x) === Math.abs(this.y - event.y)) && !event.isWall
@@ -372,20 +396,6 @@ function getRandomInt(max, min = 0) {
     Chess_On_Map_Loaded.call(this);
     $gamePlayer.highlightChessMoves();
   }
-
-  // const Chess_Start_Message = Window_Message.prototype.startMessage;
-  // Window_Message.prototype.startMessage = function() {
-  //   $gameMap.removeAllChessHighlight();
-  //   Chess_Start_Message.call(this);
-  // }
-  //
-  // const Chess_Terminate_Message = Window_Message.prototype.terminateMessage;
-  // Window_Message.prototype.terminateMessage = function() {
-  //   Chess_Terminate_Message.call(this);
-  //   $gamePlayer.highlightChessMoves();
-  // }
-
-
 
   // ---------------------------------------- CHESS MOVEMENT ---------------------------------------- //
   Game_Character.prototype.moveChess = function(destinationCoordinates) {
