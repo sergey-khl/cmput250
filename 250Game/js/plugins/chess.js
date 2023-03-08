@@ -309,33 +309,36 @@ const HOVER_ICON = 31;
       if (possiblePos[i].toString() === horseEnd.toString()) {
         canGo = !isWall(horseEnd);
         // setting routes. very gross i know so if you have a better idea lmk
+        let move = [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [6]}]
         if (canGo) {
-          switch (i) {
+            switch (i) {
             case 0:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN})
               break;
             case 1:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP})
               break;
             case 2:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN})
               break;
             case 3:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP})
               break;
             case 4:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN})
               break;
             case 5:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP})
               break;
             case 6:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN})
               break;
             case 7:
-              route = {list: [{code: Game_Character.ROUTE_SWITCH_ON, parameters: [2]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
+              move.push({code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_TRANSPARENT_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP})
               break;
           }
+          move.push({code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END})
+          route = {list: move, repeat: false, skippable: false}
           this.forceMoveRoute(route);
           $gameMap._interpreter.setWaitMode("route");
           return true;
