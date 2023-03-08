@@ -340,6 +340,8 @@ const HOVER_ICON = 31;
           move.push({code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_END})
           route = {list: move, repeat: false, skippable: false}
           this.forceMoveRoute(route);
+          $gamePlayer.requestAnimation(6);
+          $gameMap._interpreter.setWaitMode('animation');
           $gameMap._interpreter.setWaitMode("route");
           return true;
         }
