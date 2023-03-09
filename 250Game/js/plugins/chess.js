@@ -79,7 +79,8 @@ const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
  * @returns {boolean} true if
  */
 function isWall(position) {
-  return !!$gameMap.eventsXy(position[0], position[1])[0].isWall;
+  let eventAtPosition = $gameMap.eventsXy(position[0], position[1])[0];
+  return eventAtPosition.isWall || (!!eventAtPosition.gate && eventAtPosition.gate.state !== eventAtPosition.gate.requiredNumberButtonsPressed);
 }
 
 function spikeOn(event) {
@@ -114,6 +115,7 @@ function stopSEByName(name, all = false) {
   let conveyorBeltEvents = [];
   let gateEvents = [];
   let buttonEvents = [];
+  let boulderEvents = [];
 
   const Chess_Game_Map_Setup = Game_Map.prototype.setup;
   Game_Map.prototype.setup = function () {
@@ -127,6 +129,7 @@ function stopSEByName(name, all = false) {
     conveyorBeltEvents = [];
     gateEvents = [];
     buttonEvents = [];
+    boulderEvents = [];
     Chess_Game_Map_Setup.apply(this, arguments);
   }
 
@@ -140,6 +143,9 @@ function stopSEByName(name, all = false) {
   Game_Map.prototype.gates = function() { return gateEvents };
   Game_Map.prototype.buttons = function() { return buttonEvents };
   Game_Map.prototype.activeFlameTimeouts = function() { return activeFlameTimeouts };
+  Game_Map.prototype.boulders = function() { return boulderEvents; }
+  Game_Map.prototype.impassables = function() { return wallEvents.concat(
+      gateEvents.filter(gateEvent => gateEvent.gate.state !== gateEvent.gate.requiredNumberButtonsPressed)); }
 
   const Chess_Setup_Page = Game_Event.prototype.setupPage;
   Game_Event.prototype.setupPage = function() {
@@ -222,6 +228,9 @@ function stopSEByName(name, all = false) {
           requiredNumberButtonsPressed: requiredNumButtonsPressed
         }
         $gameMap.gates().push(this);
+      } else if (comment.match(/<chess:boulder>/i)) {
+        this.isBoulder = true;
+        $gameMap.boulders().push(this);
       }
     });
   };
@@ -322,6 +331,17 @@ function stopSEByName(name, all = false) {
     });
   }
 
+
+  Game_Map.prototype.checkBoulderDeath = function() {
+    const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
+
+    this.boulders().forEach(boulder => {
+      boulder.isTouchingPlayer = boulder.x === playerCoordinates[0] && boulder.y === playerCoordinates[1];
+
+      if (boulder.isTouchingPlayer) { this.playerDie(); }
+    });
+  }
+
   Game_Map.prototype.checkConveyorBeltMovement = function() {
     const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
 
@@ -379,6 +399,7 @@ function stopSEByName(name, all = false) {
     this.checkConveyorBeltMovement();
     this.checkButtonActivation();
     this.checkFlameDeath();
+    this.checkBoulderDeath();
     this.updatePitTraps();
   }
 
@@ -500,13 +521,13 @@ function stopSEByName(name, all = false) {
     }
 
     if (this.x > requestCoordinates[0] && this.y > requestCoordinates[1]) {
-      return !$gameMap.walls().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]));
+      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]));
     } else if (this.x < requestCoordinates[0] && this.y < requestCoordinates[1]) {
-      return !$gameMap.walls().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y > this. y && event.y < requestCoordinates[1]));
+      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y > this. y && event.y < requestCoordinates[1]));
     } else if (this.x > requestCoordinates[0] && this.y < requestCoordinates[1]) {
-      return !$gameMap.walls().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y > this.y && event.y < requestCoordinates[1]));
+      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y > this.y && event.y < requestCoordinates[1]));
     } else if (this.x < requestCoordinates[0] && this.y > requestCoordinates[1]) {
-      return !$gameMap.walls().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]))
+      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]))
     }
   }
 
@@ -520,13 +541,13 @@ function stopSEByName(name, all = false) {
     }
 
     if (this.x < requestCoordinates[0]) {
-      return !$gameMap.walls().filter(isValidRookMove.call(this)).some(event => event.x > this.x && event.x < requestCoordinates[0]);
+      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.x > this.x && event.x < requestCoordinates[0]);
     } else if (this.x > requestCoordinates[0]) {
-      return !$gameMap.walls().filter(isValidRookMove.call(this)).some(event => event.x < this.x && event.x > requestCoordinates[0]);
+      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.x < this.x && event.x > requestCoordinates[0]);
     } else if (this.y < requestCoordinates[1]) {
-      return !$gameMap.walls().filter(isValidRookMove.call(this)).some(event => event.y > this.y && event.y < requestCoordinates[1]);
+      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.y > this.y && event.y < requestCoordinates[1]);
     } else if (this.y > requestCoordinates[1]) {
-      return !$gameMap.walls().filter(isValidRookMove.call(this)).some(event => event.y < this.y && event.y > requestCoordinates[1]);
+      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.y < this.y && event.y > requestCoordinates[1]);
     }
   }
 
