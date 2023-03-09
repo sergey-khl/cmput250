@@ -55,8 +55,8 @@ const PIT_FALL_SE_NAME = "pitFALL";
 const PIT_FALL_SE = { name: PIT_FALL_SE_NAME, volume: 100, pitch: 100 };
 const FIRE_BURN_SE_NAME = "fireBURN";
 const FIRE_BURN_SE = { name: FIRE_BURN_SE_NAME, volume: 100, pitch: 100 };
-const FIRE_TIGGERED_SE_NAME = "flameTRIGGERED";
-const FIRE_TRIGGERED_SE = { name: FIRE_TIGGERED_SE_NAME, volume: 70, pitch: 110 };
+const FIRE_TRIGGERED_SE_NAME = "flameTRIGGERED";
+const FIRE_TRIGGERED_SE = { name: FIRE_TRIGGERED_SE_NAME, volume: 30, pitch: 110 };
 const FLAME_ACTIVE_SE_NAME = "flameACTIVE";
 const FLAME_ACTIVE_SE = { name: FLAME_ACTIVE_SE_NAME, volume: 70, pitch: 110 };
 
@@ -82,8 +82,24 @@ function isWall(position) {
   return !!$gameMap.eventsXy(position[0], position[1])[0].isWall;
 }
 
+function spikeOn(event) {
+  return event.spike.opposite ? !$gameSwitches.value(SPIKE_ON_EVENT) : $gameSwitches.value(SPIKE_ON_EVENT);
+}
+
 function getRandomInt(max, min = 0) {
   return Math.floor(Math.random() * max) + min;
+}
+
+function stopSEByName(name, all = false) {
+  let index = AudioManager._seBuffers.findIndex(se => se.url.includes(name));
+  while (index !== -1) {
+    AudioManager._seBuffers[index].stop();
+    AudioManager._seBuffers.splice(index, 1);
+    index = AudioManager._seBuffers.findIndex(se => se.url.includes(name));
+    if (!all) {
+      break;
+    }
+  }
 }
 
 (function() {
@@ -216,8 +232,12 @@ function getRandomInt(max, min = 0) {
     this.updateChessEvents.apply(this, arguments);
   };
 
-  function spikeOn(event) {
-    return event.spike.opposite ? !$gameSwitches.value(SPIKE_ON_EVENT) : $gameSwitches.value(SPIKE_ON_EVENT);
+  Game_Map.prototype.playerDie = function (deathSoundEffect) {
+    if (deathSoundEffect) {
+      AudioManager.playSe(deathSoundEffect);
+    }
+    $gameTemp.reserveCommonEvent(LOAD_EVENT);
+    $gameSwitches.clear();
   }
 
   Game_Map.prototype.updateFlameActivations = function() {
@@ -251,11 +271,12 @@ function getRandomInt(max, min = 0) {
     const timeoutIdActivating = setTimeout(() => {
       this.flame.triggered = false;
       this.flame.active = true;
-      AudioManager.stopSe()
+      stopSEByName(FIRE_TRIGGERED_SE_NAME);
       AudioManager.playSe(FLAME_ACTIVE_SE);
       this.setImage(FIRE_IMAGE.characterName, FIRE_IMAGE.characterIndex);
       const timeoutIdActive = setTimeout(() => {
         this.setImage('', 0);
+        stopSEByName(FLAME_ACTIVE_SE_NAME);
         this.flame.active = false;
         this.flame.activating = false;
         this.setTileImage(SUN_FLARE_IMAGE.characterName, 3, 5);
@@ -271,9 +292,10 @@ function getRandomInt(max, min = 0) {
 
   Game_Map.prototype.resetAllFlames = function() {
     if (this.activeFlameTimeouts()) {
-      AudioManager.stopSe();
       this.activeFlameTimeouts().forEach(timeoutId => clearTimeout(timeoutId));
     }
+    stopSEByName(FIRE_TRIGGERED_SE_NAME, true);
+    stopSEByName(FLAME_ACTIVE_SE_NAME, true);
   }
 
   Game_Map.prototype.checkFlameDeath = function() {
@@ -283,8 +305,7 @@ function getRandomInt(max, min = 0) {
       flameEvent.isTouchingPlayer = flameEvent.x === playerCoordinates[0] && flameEvent.y === playerCoordinates[1];
 
       if (flameEvent.isTouchingPlayer && flameEvent.flame.active) {
-        AudioManager.playSe(FIRE_BURN_SE);
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        this.playerDie(FIRE_BURN_SE);
       }
     });
   }
@@ -296,8 +317,7 @@ function getRandomInt(max, min = 0) {
       spikeEvent.isTouchingPlayer = spikeEvent.x === playerCoordinates[0] && spikeEvent.y === playerCoordinates[1];
 
       if (spikeEvent.isTouchingPlayer && spikeOn(spikeEvent)) {
-        AudioManager.playSe(SPIKE_DEATH_SE);
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        this.playerDie(SPIKE_DEATH_SE);
       }
     });
   }
@@ -321,16 +341,14 @@ function getRandomInt(max, min = 0) {
 
       if  (!pitEvent.pit.isActivated && pitEvent.isTouchingPlayer && !touchingPlayer) {
         AudioManager.playSe(PIT_OPEN_SE);
-        $gameSelfSwitches.setValue([this.mapId(), pitEvent._eventId, 'A'], true);
         pitEvent.pit.isActivated = true;
+        $gameSelfSwitches.setValue([this.mapId(), pitEvent._eventId, 'A'], true);
       }
 
       pitEvent.isTouchingPlayer = touchingPlayer;
 
       if (pitEvent.isTouchingPlayer && pitEvent.pit.isActivated) {
-        AudioManager.playSe(PIT_FALL_SE);
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
-        $gameSelfSwitches.setValue([this.mapId(), pitEvent._eventId, 'A'], false);
+        this.playerDie(PIT_FALL_SE);
       }
     })
   }
