@@ -59,6 +59,10 @@ const FIRE_TRIGGERED_SE_NAME = "flameTRIGGERED";
 const FIRE_TRIGGERED_SE = { name: FIRE_TRIGGERED_SE_NAME, volume: 30, pitch: 110 };
 const FLAME_ACTIVE_SE_NAME = "flameACTIVE";
 const FLAME_ACTIVE_SE = { name: FLAME_ACTIVE_SE_NAME, volume: 70, pitch: 110 };
+const PUSHING_SE_NAME = "Earth4";
+const PUSHING_SE = { name: PUSHING_SE_NAME, volume: 20, pitch: 140 };
+const BREAKING_BOULDER_SE_NAME = "Earth1";
+const BREAKING_BOULDER_SE = { name: BREAKING_BOULDER_SE_NAME, volume: 30, pitch: 110 };
 
 // --- IMAGES --- //
 const SUN_FLARE_IMAGE = {"tileId": 0, "characterName": "!Flame", "direction": 3, "pattern": 0, "characterIndex": 6};
@@ -69,6 +73,7 @@ const UP = Game_Character.ROUTE_MOVE_UP;
 const DOWN = Game_Character.ROUTE_MOVE_DOWN;
 const LEFT = Game_Character.ROUTE_MOVE_LEFT;
 const RIGHT = Game_Character.ROUTE_MOVE_RIGHT;
+const directionMap = {"up": UP, "down": DOWN, "left": LEFT, "right": RIGHT}
 
 // --- OPEN STATES GATE --- //
 const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
@@ -80,7 +85,8 @@ const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
  */
 function isWall(position) {
   let eventAtPosition = $gameMap.eventsXy(position[0], position[1])[0];
-  return eventAtPosition.isWall || (!!eventAtPosition.gate && eventAtPosition.gate.state !== eventAtPosition.gate.requiredNumberButtonsPressed);
+  const isUnopenedGate = !!eventAtPosition.gate && eventAtPosition.gate.state !== eventAtPosition.gate.requiredNumberButtonsPressed;
+  return eventAtPosition.isWall || isUnopenedGate || !!eventAtPosition.pushable;
 }
 
 function spikeOn(event) {
@@ -103,6 +109,10 @@ function stopSEByName(name, all = false) {
   }
 }
 
+function touching(eventA, eventB) {
+  return eventA.x === eventB.x && eventA.y === eventB.y;
+}
+
 (function() {
   const params = PluginManager.parameters("chess");
 
@@ -116,6 +126,7 @@ function stopSEByName(name, all = false) {
   let gateEvents = [];
   let buttonEvents = [];
   let boulderEvents = [];
+  let pushableEvents = [];
 
   const Chess_Game_Map_Setup = Game_Map.prototype.setup;
   Game_Map.prototype.setup = function () {
@@ -130,6 +141,7 @@ function stopSEByName(name, all = false) {
     gateEvents = [];
     buttonEvents = [];
     boulderEvents = [];
+    pushableEvents = [];
     Chess_Game_Map_Setup.apply(this, arguments);
   }
 
@@ -144,8 +156,12 @@ function stopSEByName(name, all = false) {
   Game_Map.prototype.buttons = function() { return buttonEvents };
   Game_Map.prototype.activeFlameTimeouts = function() { return activeFlameTimeouts };
   Game_Map.prototype.boulders = function() { return boulderEvents; }
-  Game_Map.prototype.impassables = function() { return wallEvents.concat(
-      gateEvents.filter(gateEvent => gateEvent.gate.state !== gateEvent.gate.requiredNumberButtonsPressed)); }
+  Game_Map.prototype.blockingEvents = function() {
+    const unopenedGates = gateEvents.filter(gateEvent => gateEvent.gate.state !== gateEvent.gate.requiredNumberButtonsPressed);
+    return wallEvents.concat(unopenedGates);
+  }
+  Game_Map.prototype.pushables = function() { return pushableEvents; }
+  Game_Map.prototype.weightedEvents = function () { return pushableEvents.concat(boulderEvents); }
 
   const Chess_Setup_Page = Game_Event.prototype.setupPage;
   Game_Event.prototype.setupPage = function() {
@@ -228,9 +244,16 @@ function stopSEByName(name, all = false) {
           requiredNumberButtonsPressed: requiredNumButtonsPressed
         }
         $gameMap.gates().push(this);
-      } else if (comment.match(/<chess:boulder>/i)) {
-        this.isBoulder = true;
+      } else if (comment.match(/<chess:boulder:?(left|right|up|down)?>/i)) {
         $gameMap.boulders().push(this);
+      } else if (comment.match(/<chess:pushable:?(left|right|up|down)*>/i)) {
+        let pushable = comment.match(/<chess:pushable:?(left|right|up|down)*>/i);
+        let redirection;
+        if (pushable.length) {
+          redirection = directionMap[pushable[1]];
+        }
+        this.pushable = { redirection };
+        pushableEvents.push(this);
       }
     });
   };
@@ -331,12 +354,46 @@ function stopSEByName(name, all = false) {
     });
   }
 
+  Game_Map.prototype.checkPushing = function() {
+    const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
 
-  Game_Map.prototype.checkBoulderDeath = function() {
+    this.pushables().forEach(pushable => {
+      pushable.isTouchingPlayer = pushable.x === playerCoordinates[0] && pushable.y === playerCoordinates[1];
+
+      if (pushable.isTouchingPlayer && $gamePlayer.isMoveRouteForcing() && !pushable.isMoveRouteForcing()) {
+        const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false};
+        route.list.push($gamePlayer._moveRoute.list[$gamePlayer._moveRouteIndex]);
+        route.list.push({code: Game_Character.ROUTE_END});
+        pushable.forceMoveRoute(route);
+        AudioManager.playSe(PUSHING_SE);
+        $gamePlayer.setThrough(false);
+        $gamePlayer.processRouteEnd();
+        $gamePlayer.pushing = true
+      }
+    });
+  }
+
+  Game_Map.prototype.updateBoulders = function() {
     const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
 
     this.boulders().forEach(boulder => {
       boulder.isTouchingPlayer = boulder.x === playerCoordinates[0] && boulder.y === playerCoordinates[1];
+      const isTouchingPushable = this.pushables()
+          .some(pushable => !!pushable.pushable.redirection && touching(pushable, boulder));
+      const isTouchingWall = this.blockingEvents().some(blockingEvent => touching(blockingEvent, boulder));
+
+      if (isTouchingPushable && !boulder.isTouchingPassable && boulder.isMoveRouteForcing()) {
+        const jumpCommand = { code: Game_Character.ROUTE_JUMP, parameters: [-1, 0] };
+        boulder._moveRoute.list.splice(boulder._moveRouteIndex, 0, jumpCommand);
+      }
+
+      boulder.isTouchingPassable = isTouchingPushable;
+
+      if (isTouchingWall) {
+        AudioManager.playSe(BREAKING_BOULDER_SE);
+        boulder.setThrough(false);
+        boulder.processRouteEnd();
+      }
 
       if (boulder.isTouchingPlayer) { this.playerDie(); }
     });
@@ -377,8 +434,9 @@ function stopSEByName(name, all = false) {
     this.buttons().filter(buttonEvent => !buttonEvent.button.activated).forEach(buttonEvent => {
       const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
       buttonEvent.isTouchingPlayer = buttonEvent.x === playerCoordinates[0] && buttonEvent.y === playerCoordinates[1];
+      buttonEvent.isWeightedDown = this.weightedEvents().some(event => event.x === buttonEvent.x && event.y === buttonEvent.y);
 
-      if (buttonEvent.isTouchingPlayer) {
+      if (buttonEvent.isTouchingPlayer || buttonEvent.isWeightedDown) {
         buttonEvent.button.activated = true;
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.requiredNumberButtonsPressed > gateEventToActivate.gate.state) {
@@ -395,11 +453,12 @@ function stopSEByName(name, all = false) {
     if (tickCounter % 50 === 0) {
       this.updateFlameActivations();
     }
+    this.checkPushing();
     this.checkSpikeDeath();
     this.checkConveyorBeltMovement();
     this.checkButtonActivation();
     this.checkFlameDeath();
-    this.checkBoulderDeath();
+    this.updateBoulders();
     this.updatePitTraps();
   }
 
@@ -504,6 +563,14 @@ function stopSEByName(name, all = false) {
     AudioManager.playSe(movementSoundEffects[randomSEIndex]);
   }
 
+  const Chess_Event_Route_End = Game_Event.prototype.processRouteEnd;
+  Game_Event.prototype.processRouteEnd = function() {
+    Chess_Event_Route_End.call(this);
+    if (this.pushable) {
+      $gamePlayer.pushing = false;
+    }
+  }
+
   const Chess_Route_End = Game_Player.prototype.processRouteEnd;
   Game_Player.prototype.processRouteEnd = function() {
     Chess_Route_End.call(this);
@@ -512,7 +579,7 @@ function stopSEByName(name, all = false) {
   }
 
   Game_Character.prototype.bishopCanMove = function(requestCoordinates) {
-    if ((Math.abs(this.x - requestCoordinates[0]) !== Math.abs(this.y - requestCoordinates[1])) || isWall(requestCoordinates)) {
+    if (this.pushing || (Math.abs(this.x - requestCoordinates[0]) !== Math.abs(this.y - requestCoordinates[1])) || isWall(requestCoordinates)) {
       return false;
     }
 
@@ -521,18 +588,18 @@ function stopSEByName(name, all = false) {
     }
 
     if (this.x > requestCoordinates[0] && this.y > requestCoordinates[1]) {
-      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]));
+      return !$gameMap.blockingEvents().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]));
     } else if (this.x < requestCoordinates[0] && this.y < requestCoordinates[1]) {
-      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y > this. y && event.y < requestCoordinates[1]));
+      return !$gameMap.blockingEvents().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y > this. y && event.y < requestCoordinates[1]));
     } else if (this.x > requestCoordinates[0] && this.y < requestCoordinates[1]) {
-      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y > this.y && event.y < requestCoordinates[1]));
+      return !$gameMap.blockingEvents().filter(isValidBishopMove.call(this)).some(event => (event.x < this.x && event.x > requestCoordinates[0]) && (event.y > this.y && event.y < requestCoordinates[1]));
     } else if (this.x < requestCoordinates[0] && this.y > requestCoordinates[1]) {
-      return !$gameMap.impassables().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]))
+      return !$gameMap.blockingEvents().filter(isValidBishopMove.call(this)).some(event => (event.x > this.x && event.x < requestCoordinates[0]) && (event.y < this.y && event.y > requestCoordinates[1]))
     }
   }
 
   Game_Character.prototype.rookCanMove = function(requestCoordinates) {
-    if ((this.x !== requestCoordinates[0] && this.y !== requestCoordinates[1]) || isWall(requestCoordinates)) {
+    if (this.pushing || (this.x !== requestCoordinates[0] && this.y !== requestCoordinates[1]) || isWall(requestCoordinates)) {
       return false;
     }
 
@@ -541,13 +608,13 @@ function stopSEByName(name, all = false) {
     }
 
     if (this.x < requestCoordinates[0]) {
-      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.x > this.x && event.x < requestCoordinates[0]);
+      return !$gameMap.blockingEvents().filter(isValidRookMove.call(this)).some(event => event.x > this.x && event.x < requestCoordinates[0]);
     } else if (this.x > requestCoordinates[0]) {
-      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.x < this.x && event.x > requestCoordinates[0]);
+      return !$gameMap.blockingEvents().filter(isValidRookMove.call(this)).some(event => event.x < this.x && event.x > requestCoordinates[0]);
     } else if (this.y < requestCoordinates[1]) {
-      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.y > this.y && event.y < requestCoordinates[1]);
+      return !$gameMap.blockingEvents().filter(isValidRookMove.call(this)).some(event => event.y > this.y && event.y < requestCoordinates[1]);
     } else if (this.y > requestCoordinates[1]) {
-      return !$gameMap.impassables().filter(isValidRookMove.call(this)).some(event => event.y < this.y && event.y > requestCoordinates[1]);
+      return !$gameMap.blockingEvents().filter(isValidRookMove.call(this)).some(event => event.y < this.y && event.y > requestCoordinates[1]);
     }
   }
 
