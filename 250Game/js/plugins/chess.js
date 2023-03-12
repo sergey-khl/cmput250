@@ -73,7 +73,19 @@ const UP = Game_Character.ROUTE_MOVE_UP;
 const DOWN = Game_Character.ROUTE_MOVE_DOWN;
 const LEFT = Game_Character.ROUTE_MOVE_LEFT;
 const RIGHT = Game_Character.ROUTE_MOVE_RIGHT;
-const directionMap = {"up": UP, "down": DOWN, "left": LEFT, "right": RIGHT}
+const directionMap = new Map([
+    ["up", UP],
+    ["down", DOWN],
+    ["left", LEFT],
+    ["right", RIGHT]
+])
+const validDirections = [
+    UP, DOWN, LEFT, RIGHT,
+    Game_Character.ROUTE_MOVE_LOWER_L,
+    Game_Character.ROUTE_MOVE_LOWER_R,
+    Game_Character.ROUTE_MOVE_UPPER_L,
+    Game_Character.ROUTE_MOVE_UPPER_R
+]
 
 // --- OPEN STATES GATE --- //
 const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
@@ -123,7 +135,7 @@ function touching(eventA, eventB) {
   let spikeEvents = [];
   let pitEvents = [];
   let conveyorBeltEvents = [];
-  let gateEvents = [];
+  let gateEvents = new Set();
   let buttonEvents = [];
   let boulderEvents = [];
   let pushableEvents = [];
@@ -138,7 +150,7 @@ function touching(eventA, eventB) {
     spikeEvents = [];
     pitEvents = [];
     conveyorBeltEvents = [];
-    gateEvents = [];
+    gateEvents = new Set();
     buttonEvents = [];
     boulderEvents = [];
     pushableEvents = [];
@@ -152,12 +164,12 @@ function touching(eventA, eventB) {
   Game_Map.prototype.pits = function() { return pitEvents };
   Game_Map.prototype.spikes = function() { return spikeEvents };
   Game_Map.prototype.conveyors = function() { return conveyorBeltEvents };
-  Game_Map.prototype.gates = function() { return gateEvents };
+  Game_Map.prototype.gates = function() { return Array.from(gateEvents) };
   Game_Map.prototype.buttons = function() { return buttonEvents };
   Game_Map.prototype.activeFlameTimeouts = function() { return activeFlameTimeouts };
   Game_Map.prototype.boulders = function() { return boulderEvents; }
   Game_Map.prototype.blockingEvents = function() {
-    const unopenedGates = gateEvents.filter(gateEvent => gateEvent.gate.state !== gateEvent.gate.requiredNumberButtonsPressed);
+    const unopenedGates = this.gates().filter(gateEvent => gateEvent.gate.state !== gateEvent.gate.requiredNumberButtonsPressed);
     return wallEvents.concat(unopenedGates);
   }
   Game_Map.prototype.pushables = function() { return pushableEvents; }
@@ -179,7 +191,7 @@ function touching(eventA, eventB) {
       if (comment.match(/<chess:wall>/i)) {
         this.isWall = true;
         $gameMap.walls().push(this);
-      } else if (comment.match(/<chess:spike>/i)) { // TODO: add timing here instead of in event
+      } else if (comment.match(/<chess:spike>/i)) {
         this.spike = { opposite: false };
         $gameMap.spikes().push(this);
       } else if (comment.match(/<chess:spike:opp>/i)) {
@@ -226,11 +238,17 @@ function touching(eventA, eventB) {
         } else {
           flameEvents[flameGroup].push(this);
         }
-      } else if (comment.match(/<chess:button:([a-d])>/i)) {
-        const buttonGroup = comment.match(/<chess:button:([a-d])>/i)[1];
+      } else if (comment.match(/<chess:button:([a-d]):?(true|false)?>/i)) {
+        const match = comment.match(/<chess:button:([a-d]):?(true|false)?>/i);
+        const buttonGroup = match[1];
+        let hold = false;
+        if (match.length === 3) {
+          hold = Boolean(match[2]);
+        }
         this.button = {
           activated: false,
-          group: buttonGroup.toUpperCase()
+          group: buttonGroup.toUpperCase(),
+          hold
         }
         $gameMap.buttons().push(this);
       } else if (comment.match(/<chess:gate:([a-d]):?([1-4]?)>/i)) {
@@ -243,14 +261,14 @@ function touching(eventA, eventB) {
           group: gateGroup.toUpperCase(),
           requiredNumberButtonsPressed: requiredNumButtonsPressed
         }
-        $gameMap.gates().push(this);
+        gateEvents.add(this);
       } else if (comment.match(/<chess:boulder:?(left|right|up|down)?>/i)) {
         $gameMap.boulders().push(this);
       } else if (comment.match(/<chess:pushable:?(left|right|up|down)*>/i)) {
         let pushable = comment.match(/<chess:pushable:?(left|right|up|down)*>/i);
         let redirection;
         if (pushable.length) {
-          redirection = directionMap[pushable[1]];
+          redirection = directionMap.get([pushable[1]]);
         }
         this.pushable = { redirection };
         pushableEvents.push(this);
@@ -363,14 +381,17 @@ function touching(eventA, eventB) {
       pushable.isTouchingPlayer = pushable.x === playerCoordinates[0] && pushable.y === playerCoordinates[1];
 
       if (pushable.isTouchingPlayer && $gamePlayer.isMoveRouteForcing() && !pushable.isMoveRouteForcing()) {
-        const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false};
-        route.list.push($gamePlayer._moveRoute.list[$gamePlayer._moveRouteIndex]);
-        route.list.push({code: Game_Character.ROUTE_END});
-        pushable.forceMoveRoute(route);
-        AudioManager.playSe(PUSHING_SE);
-        $gamePlayer.setThrough(false);
-        $gamePlayer.processRouteEnd();
-        $gamePlayer.pushing = true
+        const direction = $gamePlayer._moveRoute.list.find(movement => validDirections.includes(movement.code));
+        if (direction) {
+          const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false};
+          route.list.push(direction);
+          route.list.push({code: Game_Character.ROUTE_END});
+          pushable.forceMoveRoute(route);
+          AudioManager.playSe(PUSHING_SE);
+          $gamePlayer.setThrough(false);
+          $gamePlayer.processRouteEnd();
+          $gamePlayer.pushing = true
+        }
       }
     });
   }
@@ -382,7 +403,6 @@ function touching(eventA, eventB) {
       boulder.isTouchingPlayer = boulder.x === playerCoordinates[0] && boulder.y === playerCoordinates[1];
       const isTouchingPushable = this.pushables()
           .some(pushable => !!pushable.pushable.redirection && touching(pushable, boulder));
-      const isTouchingWall = this.blockingEvents().some(blockingEvent => touching(blockingEvent, boulder));
 
       if (isTouchingPushable && !boulder.isTouchingPassable && boulder.isMoveRouteForcing()) {
         const jumpCommand = { code: Game_Character.ROUTE_JUMP, parameters: [-1, 0] };
@@ -391,11 +411,12 @@ function touching(eventA, eventB) {
 
       boulder.isTouchingPassable = isTouchingPushable;
 
-      if (isTouchingWall) {
-        AudioManager.playSe(BREAKING_BOULDER_SE);
-        boulder.setThrough(false);
-        boulder.processRouteEnd();
-      }
+      // const isTouchingWall = this.blockingEvents().some(blockingEvent => touching(blockingEvent, boulder));
+      // if (isTouchingWall) {
+      //   AudioManager.playSe(BREAKING_BOULDER_SE);
+      //   boulder.setThrough(false);
+      //   boulder.processRouteEnd();
+      // }
 
       if (boulder.isTouchingPlayer) { this.playerDie(); }
     });
@@ -410,6 +431,12 @@ function touching(eventA, eventB) {
       if (conveyorBeltEvent.isTouchingPlayer && !$gamePlayer.isMoveRouteForcing()) {
         conveyorBeltEvent.activateConveyorBelt();
       }
+
+      this.pushables().filter(pushable => !pushable.isMoveRouteForcing()).forEach(pushable => {
+        if (touching(conveyorBeltEvent, pushable)) {
+          conveyorBeltEvent.activateConveyorBelt(pushable);
+        }
+      })
     });
   }
 
@@ -433,17 +460,27 @@ function touching(eventA, eventB) {
   }
 
   Game_Map.prototype.checkButtonActivation = function() {
-    this.buttons().filter(buttonEvent => !buttonEvent.button.activated).forEach(buttonEvent => {
+    this.buttons().forEach(buttonEvent => {
       const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
       buttonEvent.isTouchingPlayer = buttonEvent.x === playerCoordinates[0] && buttonEvent.y === playerCoordinates[1];
       buttonEvent.isWeightedDown = this.weightedEvents().some(event => event.x === buttonEvent.x && event.y === buttonEvent.y);
 
-      if (buttonEvent.isTouchingPlayer || buttonEvent.isWeightedDown) {
+      if ((buttonEvent.isTouchingPlayer || buttonEvent.isWeightedDown) && !buttonEvent.button.activated) {
         buttonEvent.button.activated = true;
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.requiredNumberButtonsPressed > gateEventToActivate.gate.state) {
             gateEventToActivate.gate.state++;
             $gameSelfSwitches.setValue([this.mapId(), gateEventToActivate._eventId, OPEN_STATES[gateEventToActivate.gate.state]], true);
+          }
+        });
+      }
+
+      if (!buttonEvent.isTouchingPlayer && !buttonEvent.isWeightedDown && buttonEvent.button.hold && buttonEvent.button.activated) {
+        buttonEvent.button.activated = false;
+        this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
+          if (gateEventToActivate.gate.state > 0) {
+            $gameSelfSwitches.setValue([this.mapId(), gateEventToActivate._eventId, OPEN_STATES[gateEventToActivate.gate.state]], false);
+            gateEventToActivate.gate.state--;
           }
         });
       }
@@ -464,12 +501,16 @@ function touching(eventA, eventB) {
     this.updatePitTraps();
   }
 
-  Game_Event.prototype.activateConveyorBelt = function() {
+  Game_Event.prototype.activateConveyorBelt = function(event) {
     const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false};
     route.list.push({code: this.conveyor.direction});
     route.list.push({code: Game_Character.ROUTE_THROUGH_OFF});
     route.list.push({code: Game_Character.ROUTE_END});
-    $gamePlayer.forceMoveRoute(route);
+    if (event) {
+      event.forceMoveRoute(route);
+    } else {
+      $gamePlayer.forceMoveRoute(route);
+    }
   }
 
   // ---------------------------------------- CHESS HIGHLIGHT ---------------------------------------- //
