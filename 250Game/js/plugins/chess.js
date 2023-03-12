@@ -508,6 +508,7 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
 
       if ((buttonEvent.isTouchingPlayer || buttonEvent.isWeightedDown) && !buttonEvent.button.activated) {
         buttonEvent.button.activated = true;
+        $gameSelfSwitches.setValue([this.mapId(), buttonEvent._eventId, 'A'], true);
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.requiredNumberButtonsPressed > gateEventToActivate.gate.state) {
             gateEventToActivate.gate.state++;
@@ -518,6 +519,7 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
 
       if (!buttonEvent.isTouchingPlayer && !buttonEvent.isWeightedDown && buttonEvent.button.hold && buttonEvent.button.activated) {
         buttonEvent.button.activated = false;
+        $gameSelfSwitches.setValue([this.mapId(), buttonEvent._eventId, 'A'], false);
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.state > 0) {
             $gameSelfSwitches.setValue([this.mapId(), gateEventToActivate._eventId, OPEN_STATES[gateEventToActivate.gate.state]], false);
