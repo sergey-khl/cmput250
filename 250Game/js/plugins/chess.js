@@ -25,7 +25,7 @@
  5. <chess:conveyor:DIRECTION>
  DIRECTION is one of (left/right/up/down)
  Creates a tile that pushes the player in the provided direction
- *  
+ *
 */
 
 
@@ -265,11 +265,13 @@ function touching(eventA, eventB) {
   };
 
   Game_Map.prototype.playerDie = function (deathSoundEffect) {
-    if (deathSoundEffect) {
-      AudioManager.playSe(deathSoundEffect);
+    if (!$gamePlayer.isImmune) {
+      if (deathSoundEffect) {
+        AudioManager.playSe(deathSoundEffect);
+      }
+      $gameTemp.reserveCommonEvent(LOAD_EVENT);
+      $gameSwitches.clear();
     }
-    $gameTemp.reserveCommonEvent(LOAD_EVENT);
-    $gameSwitches.clear();
   }
 
   Game_Map.prototype.updateFlameActivations = function() {
@@ -576,6 +578,7 @@ function touching(eventA, eventB) {
     Chess_Route_End.call(this);
     this.highlightChessMoves();
     this.playChessMovementSE();
+    this.isImmune = false;
   }
 
   Game_Character.prototype.bishopCanMove = function(requestCoordinates) {
@@ -687,57 +690,100 @@ function touching(eventA, eventB) {
   }
 
   // return a route for the horse if possible otherwise null
-  Game_Character.prototype.moveKnight = function(horseEnd) {
-    const possiblePos = [
-      [this.x-2, this.y+1],
-      [this.x-2, this.y-1],
-      [this.x-1, this.y+2],
-      [this.x-1, this.y-2],
-      [this.x+1, this.y+2],
-      [this.x+1, this.y-2],
-      [this.x+2, this.y+1],
-      [this.x+2, this.y-1]
+  Game_Character.prototype.moveKnight = function(requestCoordinates) {
+    const knightValidMoves = [
+      [this.x - 2, this.y + 1],
+      [this.x - 2, this.y - 1],
+      [this.x - 1, this.y + 2],
+      [this.x - 1, this.y - 2],
+      [this.x + 1, this.y + 2],
+      [this.x + 1, this.y - 2],
+      [this.x + 2, this.y + 1],
+      [this.x + 2, this.y - 1]
     ];
-
-    let canGo = true;
-    let route = null;
-
-    for (let i = 0; i < possiblePos.length; i++) {
-      if (possiblePos[i].toString() === horseEnd.toString()) {
-        canGo = !isWall(horseEnd);
-        if (canGo) {
-          switch (i) {
-            case 0:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-            case 1:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-            case 2:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-            case 3:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_LEFT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-            case 4:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-            case 5:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-            case 6:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_DOWN}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-            case 7:
-              route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_RIGHT}, {code: Game_Character.ROUTE_MOVE_UP}, {code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END}], repeat: false, skippable: false};
-              break;
-          }
-          this.forceMoveRoute(route);
-          return true;
-        }
-        canGo = true;
+    const validMove = destination => destination[0] === requestCoordinates[0] && destination[1] === requestCoordinates[1];
+    const canMove = knightValidMoves.some(validMove) && !isWall(requestCoordinates);
+    if (canMove) {
+      let list = [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [6]}]
+      switch (knightValidMoves.findIndex(validMove)) {
+        case 0:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_LEFT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_LEFT},
+              {code: Game_Character.ROUTE_MOVE_DOWN}
+          )
+          break;
+        case 1:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_LEFT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_LEFT},
+              {code: Game_Character.ROUTE_MOVE_UP})
+          break;
+        case 2:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_LEFT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_DOWN},
+              {code: Game_Character.ROUTE_MOVE_DOWN})
+          break;
+        case 3:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_LEFT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_UP},
+              {code: Game_Character.ROUTE_MOVE_UP})
+          break;
+        case 4:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_RIGHT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_DOWN},
+              {code: Game_Character.ROUTE_MOVE_DOWN})
+          break;
+        case 5:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_RIGHT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_UP},
+              {code: Game_Character.ROUTE_MOVE_UP})
+          break;
+        case 6:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_RIGHT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_RIGHT},
+              {code: Game_Character.ROUTE_MOVE_DOWN})
+          break;
+        case 7:
+          list.push(
+              {code: Game_Character.ROUTE_MOVE_RIGHT},
+              {code: Game_Character.ROUTE_TRANSPARENT_ON},
+              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
+              {code: Game_Character.ROUTE_MOVE_RIGHT},
+              {code: Game_Character.ROUTE_MOVE_UP})
+          break;
       }
+      list.push(
+          {code: Game_Character.ROUTE_TRANSPARENT_OFF},
+          {code: Game_Character.ROUTE_THROUGH_OFF, parameters: [2]},
+          {code: Game_Character.ROUTE_END}
+      )
+      const route = {list, repeat: false, skippable: false}
+      this.isImmune = true;
+      this.forceMoveRoute(route);
+      $gamePlayer.requestAnimation(6);
+      return true;
+    } else {
+      return false;
     }
-    return false;
   }
 })();
