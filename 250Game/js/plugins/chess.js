@@ -33,6 +33,7 @@ function isWall(position) {
   return !!$gameMap.eventsXy(position[0], position[1])[0].isWall;
 }
 
+const MOVING = 2;
 const LOAD_EVENT = 6;
 const SPIKE_ON_EVENT = 22;
 const HORSE_SWITCH = 18;
@@ -66,6 +67,14 @@ const HOVER_ICON = 31;
         this.pit = { isActivated: false }
       } else if (comment.match(/<chess:pawn>/i)) {
         this.isPawn = true;
+      } else if (comment.match(/<chess:conveyorU>/i)) {
+        this.conveyorU = true;
+      } else if (comment.match(/<chess:conveyorD>/i)) {
+        this.conveyorD = true;
+      } else if (comment.match(/<chess:conveyorL>/i)) {
+        this.conveyorL = true;
+      } else if (comment.match(/<chess:conveyorR>/i)) {
+        this.conveyorR = true;
       }
     });
   };
@@ -85,29 +94,68 @@ const HOVER_ICON = 31;
   }
 
   Game_Map.prototype.updateChessEvents = function() {
-    this.events().forEach(event => {
-      const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
-      const touchingPlayer = event.x === playerCoordinates[0] && event.y === playerCoordinates[1];
-      if (!!event.pit && !event.pit.isActivated && event.isTouchingPlayer && !touchingPlayer) {
-        // true if the player was previously on this event but is moving away
-        // TODO: play sound effect
-        $gameSelfSwitches.setValue([this.mapId(), event._eventId, 'A'], true);
-        event.pit.isActivated = true;
-      }
-      event.isTouchingPlayer = touchingPlayer;
-      if (event.isSpike() && event.isTouchingPlayer && spikeOn(event)) {
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
-      } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
-      } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
-      } else if (event.isPawn) {
-        const pawnRoute = this.checkEatPawn([event.x, event.y], playerCoordinates);
-        if (pawnRoute) {
-          this.pawnAttack(event, pawnRoute);
+    if (!$gameSwitches.value(MOVING)) {
+      this.events().forEach(event => {
+        const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
+        const touchingPlayer = event.x === playerCoordinates[0] && event.y === playerCoordinates[1];
+        if (!!event.pit && !event.pit.isActivated && event.isTouchingPlayer && !touchingPlayer) {
+          // true if the player was previously on this event but is moving away
+          // TODO: play sound effect
+          $gameSelfSwitches.setValue([this.mapId(), event._eventId, 'A'], true);
+          event.pit.isActivated = true;
         }
-      }
-    });
+        event.isTouchingPlayer = touchingPlayer;
+        if (event.isSpike() && event.isTouchingPlayer && spikeOn(event)) {
+          $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
+          $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
+          $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        } else if (event.isPawn) {
+          const pawnRoute = this.checkEatPawn([event.x, event.y], playerCoordinates);
+          if (pawnRoute) {
+            this.pawnAttack(event, pawnRoute);
+          }
+        } else if (event.isTouchingPlayer && event.conveyorU) {
+          route =  this.conveyor("up");
+          $gamePlayer.forceMoveRoute(route);
+          this._interpreter.setWaitMode("route");
+        } else if (event.isTouchingPlayer && event.conveyorD) {
+          route =  this.conveyor("down");
+          $gamePlayer.forceMoveRoute(route);
+          this._interpreter.setWaitMode("route");
+        } else if (event.isTouchingPlayer && event.conveyorR) {
+          route =  this.conveyor("right");
+          $gamePlayer.forceMoveRoute(route);
+          this._interpreter.setWaitMode("route");
+        } else if (event.isTouchingPlayer && event.conveyorL) {
+          route =  this.conveyor("left");
+          $gamePlayer.forceMoveRoute(route);
+          this._interpreter.setWaitMode("route");
+        }
+      });
+    }
+  }
+
+  Game_Map.prototype.conveyor = function (where) {
+    const route = {list: [], repeat: false, skippable: false};
+    let routeCode;
+    if (where == "up") {
+      routeCode = Game_Character.ROUTE_MOVE_UP;
+    } else if (where == "down") {
+      routeCode = Game_Character.ROUTE_MOVE_DOWN;
+    } else if (where == "right") {
+      routeCode = Game_Character.ROUTE_MOVE_RIGHT;
+    } else if (where == "left") {
+      routeCode = Game_Character.ROUTE_MOVE_LEFT;
+    }
+
+    const finalizeRouteElements = [{code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_END}];
+    route.list.push({code: routeCode})
+    route.list = route.list.concat(finalizeRouteElements);
+    
+    
+    return route;
   }
 
   // TODO: fix this, it does not actually work...
