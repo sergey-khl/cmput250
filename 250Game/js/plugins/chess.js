@@ -31,7 +31,6 @@
 
 // --- SWITCHES --- //
 const LOAD_EVENT = 6;
-const SPIKE_ON_EVENT = 22;
 const HORSE_SWITCH = 18;
 const BISHOP_SWITCH = 20;
 const ROOK_SWITCH = 19;
@@ -50,7 +49,7 @@ const CHESS_MOVEMENT_SE_1 = {name: CHESS_MOVE_SE_1_NAME, volume: 90, pitch: 100}
 const CHESS_MOVEMENT_SE_2 = {name: CHESS_MOVE_SE_2_NAME, volume: 90, pitch: 100};
 const CHESS_MOVEMENT_SE_3 = {name: CHESS_MOVE_SE_3_NAME, volume: 90, pitch: 100};
 const PIT_OPEN_SE_NAME = "pitOPEN";
-const PIT_OPEN_SE = { name: PIT_OPEN_SE_NAME, volume: 100, pitch: 110 };
+const PIT_OPEN_SE = { name: PIT_OPEN_SE_NAME, volume: 40, pitch: 110 };
 const PIT_FALL_SE_NAME = "pitFALL";
 const PIT_FALL_SE = { name: PIT_FALL_SE_NAME, volume: 100, pitch: 100 };
 const FIRE_BURN_SE_NAME = "fireBURN";
@@ -61,8 +60,11 @@ const FLAME_ACTIVE_SE_NAME = "flameACTIVE";
 const FLAME_ACTIVE_SE = { name: FLAME_ACTIVE_SE_NAME, volume: 70, pitch: 110 };
 const PUSHING_SE_NAME = "Earth4";
 const PUSHING_SE = { name: PUSHING_SE_NAME, volume: 20, pitch: 140 };
-const BREAKING_BOULDER_SE_NAME = "Earth1";
-const BREAKING_BOULDER_SE = { name: BREAKING_BOULDER_SE_NAME, volume: 30, pitch: 110 };
+const SPIKE_ON_SE_NAME = "spikeON"
+const SPIKE_OFF_SE_NAME = "spikeOFF"
+const SPIKE_ON_SE = { name: SPIKE_ON_SE_NAME, volume: 40, pitch: 120 };
+const SPIKE_OFF_SE = { name: SPIKE_OFF_SE_NAME, volume: 40, pitch: 80 };
+const SPIKE_SE_MAP = new Map([[true, SPIKE_ON_SE], [false, SPIKE_OFF_SE]]);
 
 // --- IMAGES --- //
 const SUN_FLARE_IMAGE = {"tileId": 0, "characterName": "!Flame", "direction": 3, "pattern": 0, "characterIndex": 6};
@@ -97,16 +99,6 @@ const validDirectionsCoordinateOffset = new Map([
     [UPPER_L, [-1, -1]],
     [UPPER_R, [1, -1]]
 ]);
-const validDirectionOpposites = new Map([
-    [UP, DOWN],
-    [DOWN, UP],
-    [LEFT, RIGHT],
-    [RIGHT, LEFT],
-    [LOWER_L, UPPER_R],
-    [LOWER_R, UPPER_L],
-    [UPPER_L, LOWER_R],
-    [UPPER_R, LOWER_L]
-])
 
 // --- OPEN STATES GATE --- //
 const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
@@ -123,16 +115,20 @@ function isWall(position) {
   })
 }
 
-function spikeOn(event) {
-  return event.spike.opposite ? !$gameSwitches.value(SPIKE_ON_EVENT) : $gameSwitches.value(SPIKE_ON_EVENT);
-}
-
 function getRandomInt(max, min = 0) {
   return Math.floor(Math.random() * max) + min;
 }
 
+function XOR(a,b) {
+  return ( a || b ) && !( a && b );
+}
+
+function findSEIndex(name) {
+  return AudioManager._seBuffers.findIndex(se => se.url.includes(name));
+}
+
 function stopSEByName(name, all = false) {
-  let index = AudioManager._seBuffers.findIndex(se => se.url.includes(name));
+  let index = findSEIndex(name);
   while (index !== -1) {
     AudioManager._seBuffers[index].stop();
     AudioManager._seBuffers.splice(index, 1);
@@ -161,23 +157,15 @@ function surroundingOffsets(centralEvent, eventsToCheckFor) {
   return surroundingOffsets;
 }
 
-function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
-  let directionOffset = validDirectionsCoordinateOffset.get(direction);
-  const offsetX = directionOffset[0];
-  const offsetY = directionOffset[1];
-  return !!eventsToCheckFor.some(event => event.x === targetEvent.x + offsetX * aoe && event.y === targetEvent.y + offsetY * aoe);
-
-}
-
+const SPIKE_TIMING = 2000;
 (function() {
-  const params = PluginManager.parameters("chess");
-
+  PluginManager.parameters("chess");
   let tickCounter = 0;
   let flameEvents = Array(10);
   let activeFlameTimeouts = [];
   let wallEvents = [];
-  let spikeEvents = [];
-  let pitEvents = [];
+  let spikeEvents = new Set();
+  let pitEvents = new Set();
   let conveyorBeltEvents = [];
   let gateEvents = new Set();
   let buttonEvents = [];
@@ -191,8 +179,8 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
     flameEvents = Array(10);
     activeFlameTimeouts = [];
     wallEvents = [];
-    spikeEvents = [];
-    pitEvents = [];
+    spikeEvents = new Set();
+    pitEvents = new Set();
     conveyorBeltEvents = [];
     gateEvents = new Set();
     buttonEvents = [];
@@ -205,8 +193,8 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
   Game_Map.prototype.flameGroups = function() { return flameEvents.filter(group => !!group); };
   Game_Map.prototype.allFlames = function () { return Array.prototype.concat.apply([], flameEvents).filter(event => !!event); }
   Game_Map.prototype.walls = function() { return wallEvents };
-  Game_Map.prototype.pits = function() { return pitEvents };
-  Game_Map.prototype.spikes = function() { return spikeEvents };
+  Game_Map.prototype.pits = function() { return Array.from(pitEvents) };
+  Game_Map.prototype.spikes = function() { return Array.from(spikeEvents) };
   Game_Map.prototype.conveyors = function() { return conveyorBeltEvents };
   Game_Map.prototype.gates = function() { return Array.from(gateEvents) };
   Game_Map.prototype.buttons = function() { return buttonEvents };
@@ -235,15 +223,25 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
       if (comment.match(/<chess:wall>/i)) {
         this.isWall = true;
         $gameMap.walls().push(this);
-      } else if (comment.match(/<chess:spike>/i)) {
-        this.spike = { opposite: false };
-        $gameMap.spikes().push(this);
-      } else if (comment.match(/<chess:spike:opp>/i)) {
-        this.spike = { opposite: true }
-        $gameMap.spikes().push(this);
+      } else if (comment.match(/<chess:spike:?(\d*):?(true|false)?>/i)) {
+        if (!spikeEvents.has(this)) {
+          let match = comment.match(/<chess:spike:?(\d*):?(true|false)?>/i);
+          let spikeDelay = 0;
+          let startDown = true;
+          if (match[1]) {
+            spikeDelay = parseInt(match[1]);
+          }
+          if (match[2]) {
+            startDown = match[2].toLowerCase() === "true"
+          }
+          this.spike = { scheduled: false, active: !startDown, opposite: startDown };
+          setTimeout(() => spikeEvents.add(this), spikeDelay);
+        }
       } else if (comment.match(/<chess:pit>/i)) {
-        this.pit = { isActivated: false }
-        $gameMap.pits().push(this);
+        if (!pitEvents.has(this)) {
+          this.pit = { isActivated: false };
+          pitEvents.add(this);
+        }
       } else if (comment.match(/<chess:conveyor:left>/i)) {
         this.conveyor = { direction: LEFT }
         $gameMap.conveyors().push(this);
@@ -286,8 +284,8 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
         const match = comment.match(/<chess:button:([a-d]):?(true|false)?>/i);
         const buttonGroup = match[1];
         let hold = false;
-        if (match.length === 3) {
-          hold = Boolean(match[2]);
+        if (match[2]) {
+          hold = match[2].toLowerCase() === "true"
         }
         this.button = {
           activated: false,
@@ -407,13 +405,23 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
     });
   }
 
-  Game_Map.prototype.checkSpikeDeath = function() {
+  Game_Map.prototype.updateSpikeTraps = function() {
     const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
+    this.spikes().filter(spike => !spike.spike.scheduled).forEach(spike => {
+      spike.spike.scheduled = true;
+      setTimeout(() => {
+        spike.spike.active = !spike.spike.active;
+        $gameSelfSwitches.setValue([this.mapId(), spike._eventId, 'A'], XOR(spike.spike.active, !spike.spike.opposite));
+        if (findSEIndex(SPIKE_SE_MAP.get(spike.spike.active).name) === -1) {
+          AudioManager.playSe(SPIKE_SE_MAP.get(spike.spike.active));
+        }
+        spike.spike.scheduled = false;
+      }, SPIKE_TIMING);
+    })
 
-    this.spikes().forEach(spikeEvent => {
+    this.spikes().filter(spike => spike.spike.active).forEach(spikeEvent => {
       spikeEvent.isTouchingPlayer = spikeEvent.x === playerCoordinates[0] && spikeEvent.y === playerCoordinates[1];
-
-      if (spikeEvent.isTouchingPlayer && spikeOn(spikeEvent)) {
+      if (spikeEvent.isTouchingPlayer) {
         this.playerDie(SPIKE_DEATH_SE);
       }
     });
@@ -549,7 +557,7 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
       this.updateFlameActivations();
     }
     this.checkPushing();
-    this.checkSpikeDeath();
+    this.updateSpikeTraps();
     this.checkConveyorBeltMovement();
     this.checkButtonActivation();
     this.checkFlameDeath();
@@ -790,83 +798,37 @@ function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
     const validMove = destination => destination[0] === requestCoordinates[0] && destination[1] === requestCoordinates[1];
     const canMove = knightValidMoves.some(validMove) && !isWall(requestCoordinates);
     if (canMove) {
-      let list = [{code: Game_Character.ROUTE_THROUGH_ON}, {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [6]}]
+      let list = [{code: Game_Character.ROUTE_THROUGH_ON}]
       switch (knightValidMoves.findIndex(validMove)) {
         case 0:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_LEFT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_LEFT},
-              {code: Game_Character.ROUTE_MOVE_DOWN}
-          )
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [-2, 1]})
           break;
         case 1:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_LEFT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_LEFT},
-              {code: Game_Character.ROUTE_MOVE_UP})
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [-2, -1]})
           break;
         case 2:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_LEFT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_DOWN},
-              {code: Game_Character.ROUTE_MOVE_DOWN})
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [-1, 2]})
           break;
         case 3:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_LEFT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_UP},
-              {code: Game_Character.ROUTE_MOVE_UP})
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [-1, -2]})
           break;
         case 4:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_RIGHT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_DOWN},
-              {code: Game_Character.ROUTE_MOVE_DOWN})
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [1, 2]})
           break;
         case 5:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_RIGHT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_UP},
-              {code: Game_Character.ROUTE_MOVE_UP})
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [1, -2]})
           break;
         case 6:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_RIGHT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_RIGHT},
-              {code: Game_Character.ROUTE_MOVE_DOWN})
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [2, 1]})
           break;
         case 7:
-          list.push(
-              {code: Game_Character.ROUTE_MOVE_RIGHT},
-              {code: Game_Character.ROUTE_TRANSPARENT_ON},
-              {code: Game_Character.ROUTE_CHANGE_SPEED, parameters: [4]},
-              {code: Game_Character.ROUTE_MOVE_RIGHT},
-              {code: Game_Character.ROUTE_MOVE_UP})
+          list.push({code: Game_Character.ROUTE_JUMP, parameters: [2, -1]})
           break;
       }
-      list.push(
-          {code: Game_Character.ROUTE_TRANSPARENT_OFF},
-          {code: Game_Character.ROUTE_THROUGH_OFF, parameters: [2]},
-          {code: Game_Character.ROUTE_END}
-      )
+      list.push({code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END})
       const route = {list, repeat: false, skippable: false}
-      this.isImmune = true;
+      this.chessJumping = true;
       this.forceMoveRoute(route);
-      $gamePlayer.requestAnimation(6);
       return true;
     } else {
       return false;

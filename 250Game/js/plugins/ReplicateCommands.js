@@ -48,7 +48,7 @@ var ReplicateCommands = ReplicateCommands || {};
                             if (event && !event.isReplicated) {
                                 event.pages.forEach(page => page.list = eventToCopy.pages[0].list.concat(page.list)); // could use index
                                 event.isReplicated = true;
-                            } else {
+                            } else if (!event) {
                                 let copiedEvent = {...eventToCopy};
                                 copiedEvent.id = Math.max(...$dataMap.events.filter(event => !!event).map(event => event.id)) + 1;
                                 copiedEvent.x = x;
