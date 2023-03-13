@@ -70,7 +70,7 @@ const SPIKE_SE_MAP = new Map([[true, SPIKE_ON_SE], [false, SPIKE_OFF_SE]]);
 const BUTTON_SWITCH_SE_NAME = "buttonSWITCH";
 const BUTTON_SWITCH_SE = { name: BUTTON_SWITCH_SE_NAME, volume: 70, pitch: 110 };
 const BUTTON_OFF_SE_NAME = "buttonOFF";
-const BUTTON_OFF_SE = { name: BUTTON_OFF_NAME, volume: 70, pitch: 90 };
+const BUTTON_OFF_SE = { name: BUTTON_OFF_SE_NAME, volume: 70, pitch: 90 };
 
 // --- IMAGES --- //
 const SUN_FLARE_IMAGE = {"tileId": 0, "characterName": "!Flame", "direction": 3, "pattern": 0, "characterIndex": 6};
