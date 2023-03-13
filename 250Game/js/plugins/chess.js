@@ -444,7 +444,6 @@ const SPIKE_TIMING = 2000;
         const directionOffset = validDirectionsCoordinateOffset.get(direction.code);
         const intoImmovable = pushable.pushable.invalidOffsets.some(offset => offset[0] === directionOffset[0] && offset[1] === directionOffset[1]);
         if (!intoImmovable) {
-          // TODO PUSHING AWAY EVENT MEANS CANT WALK WHERE EVENT WAS
           const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false, wait: false};
           route.list.push(direction);
           route.list.push({code: Game_Character.ROUTE_END});
