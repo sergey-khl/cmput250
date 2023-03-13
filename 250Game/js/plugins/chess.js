@@ -116,46 +116,9 @@ const HOVER_ICON = 31;
           if (pawnRoute) {
             this.pawnAttack(event, pawnRoute);
           }
-        } else if (event.isTouchingPlayer && event.conveyorU) {
-          route =  this.conveyor("up");
-          $gamePlayer.forceMoveRoute(route);
-          this._interpreter.setWaitMode("route");
-        } else if (event.isTouchingPlayer && event.conveyorD) {
-          route =  this.conveyor("down");
-          $gamePlayer.forceMoveRoute(route);
-          this._interpreter.setWaitMode("route");
-        } else if (event.isTouchingPlayer && event.conveyorR) {
-          route =  this.conveyor("right");
-          $gamePlayer.forceMoveRoute(route);
-          this._interpreter.setWaitMode("route");
-        } else if (event.isTouchingPlayer && event.conveyorL) {
-          route =  this.conveyor("left");
-          $gamePlayer.forceMoveRoute(route);
-          this._interpreter.setWaitMode("route");
         }
       });
     }
-  }
-
-  Game_Map.prototype.conveyor = function (where) {
-    const route = {list: [], repeat: false, skippable: false};
-    let routeCode;
-    if (where == "up") {
-      routeCode = Game_Character.ROUTE_MOVE_UP;
-    } else if (where == "down") {
-      routeCode = Game_Character.ROUTE_MOVE_DOWN;
-    } else if (where == "right") {
-      routeCode = Game_Character.ROUTE_MOVE_RIGHT;
-    } else if (where == "left") {
-      routeCode = Game_Character.ROUTE_MOVE_LEFT;
-    }
-
-    const finalizeRouteElements = [{code: Game_Character.ROUTE_SWITCH_OFF, parameters: [2]}, {code: Game_Character.ROUTE_TRANSPARENT_OFF}, {code: Game_Character.ROUTE_END}];
-    route.list.push({code: routeCode})
-    route.list = route.list.concat(finalizeRouteElements);
-    
-    
-    return route;
   }
 
   // TODO: fix this, it does not actually work...
