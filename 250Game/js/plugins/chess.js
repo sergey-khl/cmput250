@@ -118,7 +118,13 @@ function isWall(position) {
         return !!event.pushable && event.pushable.invalidOffsets.some(offset => offset[0] === conveyorOffset[0] && offset[1] === conveyorOffset[1]);
       });
     }
-    return eventAtPosition.isWall || isUnopenedGate || blockedConveyor;
+    let blockedPushable = false;
+    if (!!eventAtPosition.pushable) {
+      const xDirection = (position[0] - $gamePlayer.x) / Math.max(1, Math.abs(position[0] - $gamePlayer.x));
+      const yDirection = (position[1] - $gamePlayer.y) / Math.max(1, Math.abs(position[1] - $gamePlayer.y));
+      blockedPushable = eventAtPosition.pushable.invalidOffsets.some(offset => offset[0] === xDirection && offset[1] === yDirection);
+    }
+    return eventAtPosition.isWall || isUnopenedGate || blockedConveyor || blockedPushable;
   })
 }
 
