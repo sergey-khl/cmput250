@@ -228,14 +228,20 @@ const SPIKE_TIMING = 2000;
           let match = comment.match(/<chess:spike:?(\d*):?(true|false)?>/i);
           let spikeDelay = 0;
           let startDown = true;
+          let audioLeader = false; // plays audio for a set of spikes on same interval
           if (match[1]) {
             spikeDelay = parseInt(match[1]);
           }
           if (match[2]) {
             startDown = match[2].toLowerCase() === "true"
           }
-          this.spike = { scheduled: false, active: !startDown, opposite: startDown };
-          setTimeout(() => spikeEvents.add(this), spikeDelay);
+          this.spike = { scheduled: false, active: !startDown, opposite: startDown, initialDelay: spikeDelay, audioLeader };
+          setTimeout(() => {
+            if (!$gameMap.spikes().some(spike => spike.spike.initialDelay === spikeDelay)) {
+              this.spike.audioLeader = true;
+            }
+            spikeEvents.add(this);
+          }, spikeDelay);
         }
       } else if (comment.match(/<chess:pit>/i)) {
         if (!pitEvents.has(this)) {
@@ -412,7 +418,7 @@ const SPIKE_TIMING = 2000;
       setTimeout(() => {
         spike.spike.active = !spike.spike.active;
         $gameSelfSwitches.setValue([this.mapId(), spike._eventId, 'A'], XOR(spike.spike.active, !spike.spike.opposite));
-        if (findSEIndex(SPIKE_SE_MAP.get(spike.spike.active).name) === -1) {
+        if (spike.spike.audioLeader) {
           AudioManager.playSe(SPIKE_SE_MAP.get(spike.spike.active));
         }
         spike.spike.scheduled = false;
@@ -438,7 +444,7 @@ const SPIKE_TIMING = 2000;
         const directionOffset = validDirectionsCoordinateOffset.get(direction.code);
         const intoImmovable = pushable.pushable.invalidOffsets.some(offset => offset[0] === directionOffset[0] && offset[1] === directionOffset[1]);
         if (!intoImmovable) {
-          // TODO fix pushing away event means no longer walkable where event was
+          // TODO PUSHING AWAY EVENT MEANS CANT WALK WHERE EVENT WAS
           const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false, wait: false};
           route.list.push(direction);
           route.list.push({code: Game_Character.ROUTE_END});
