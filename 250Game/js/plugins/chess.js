@@ -60,11 +60,17 @@ const FLAME_ACTIVE_SE_NAME = "flameACTIVE";
 const FLAME_ACTIVE_SE = { name: FLAME_ACTIVE_SE_NAME, volume: 70, pitch: 110 };
 const PUSHING_SE_NAME = "Earth4";
 const PUSHING_SE = { name: PUSHING_SE_NAME, volume: 20, pitch: 140 };
+const BOULDER_DEATH_SE_NAME = "boulderDEATH";
+const BOULDER_DEATH_SE = { name: BOULDER_DEATH_SE_NAME, volume: 100, pitch: 140 };
 const SPIKE_ON_SE_NAME = "spikeON"
 const SPIKE_OFF_SE_NAME = "spikeOFF"
 const SPIKE_ON_SE = { name: SPIKE_ON_SE_NAME, volume: 40, pitch: 120 };
 const SPIKE_OFF_SE = { name: SPIKE_OFF_SE_NAME, volume: 40, pitch: 80 };
 const SPIKE_SE_MAP = new Map([[true, SPIKE_ON_SE], [false, SPIKE_OFF_SE]]);
+const BUTTON_SWITCH_SE_NAME = "buttonSWITCH";
+const BUTTON_SWITCH_SE = { name: BUTTON_SWITCH_SE_NAME, volume: 70, pitch: 110 };
+const BUTTON_OFF_SE_NAME = "buttonOFF";
+const BUTTON_OFF_SE = { name: BUTTON_OFF_NAME, volume: 70, pitch: 90 };
 
 // --- IMAGES --- //
 const SUN_FLARE_IMAGE = {"tileId": 0, "characterName": "!Flame", "direction": 3, "pattern": 0, "characterIndex": 6};
@@ -485,7 +491,7 @@ const SPIKE_TIMING = 2000;
 
       boulder.isTouchingPassable = isTouchingPushable;
 
-      if (boulder.isTouchingPlayer) { this.playerDie(); }
+      if (boulder.isTouchingPlayer) { this.playerDie(BOULDER_DEATH_SE); }
     });
   }
 
@@ -534,6 +540,7 @@ const SPIKE_TIMING = 2000;
 
       if ((buttonEvent.isTouchingPlayer || buttonEvent.isWeightedDown) && !buttonEvent.button.activated) {
         buttonEvent.button.activated = true;
+        AudioManager.playSe(BUTTON_SWITCH_SE);
         $gameSelfSwitches.setValue([this.mapId(), buttonEvent._eventId, 'A'], true);
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.requiredNumberButtonsPressed > gateEventToActivate.gate.state) {
@@ -545,6 +552,7 @@ const SPIKE_TIMING = 2000;
 
       if (!buttonEvent.isTouchingPlayer && !buttonEvent.isWeightedDown && buttonEvent.button.hold && buttonEvent.button.activated) {
         buttonEvent.button.activated = false;
+        AudioManager.playSe(BUTTON_OFF_SE);
         $gameSelfSwitches.setValue([this.mapId(), buttonEvent._eventId, 'A'], false);
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.state > 0) {
