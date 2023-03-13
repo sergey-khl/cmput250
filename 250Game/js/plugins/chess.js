@@ -67,6 +67,14 @@ const HOVER_ICON = 31;
         this.pit = { isActivated: false }
       } else if (comment.match(/<chess:pawn>/i)) {
         this.isPawn = true;
+      } else if (comment.match(/<chess:conveyorU>/i)) {
+        this.conveyorU = true;
+      } else if (comment.match(/<chess:conveyorD>/i)) {
+        this.conveyorD = true;
+      } else if (comment.match(/<chess:conveyorL>/i)) {
+        this.conveyorL = true;
+      } else if (comment.match(/<chess:conveyorR>/i)) {
+        this.conveyorR = true;
       }
     });
   };
