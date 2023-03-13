@@ -73,7 +73,40 @@ const UP = Game_Character.ROUTE_MOVE_UP;
 const DOWN = Game_Character.ROUTE_MOVE_DOWN;
 const LEFT = Game_Character.ROUTE_MOVE_LEFT;
 const RIGHT = Game_Character.ROUTE_MOVE_RIGHT;
-const directionMap = {"up": UP, "down": DOWN, "left": LEFT, "right": RIGHT}
+const directionMap = new Map([
+    ["up", UP],
+    ["down", DOWN],
+    ["left", LEFT],
+    ["right", RIGHT]
+])
+const LOWER_L = Game_Character.ROUTE_MOVE_LOWER_L;
+const LOWER_R = Game_Character.ROUTE_MOVE_LOWER_R;
+const UPPER_L = Game_Character.ROUTE_MOVE_UPPER_L;
+const UPPER_R = Game_Character.ROUTE_MOVE_UPPER_R;
+const validDirections = [
+    UP, DOWN, LEFT, RIGHT,
+    LOWER_L, LOWER_R, UPPER_L, UPPER_R
+]
+const validDirectionsCoordinateOffset = new Map([
+    [UP, [0, -1]],
+    [DOWN, [0, 1]],
+    [LEFT, [-1, 0]],
+    [RIGHT, [1, 0]],
+    [LOWER_L, [-1, 1]],
+    [LOWER_R, [1, 1]],
+    [UPPER_L, [-1, -1]],
+    [UPPER_R, [1, -1]]
+]);
+const validDirectionOpposites = new Map([
+    [UP, DOWN],
+    [DOWN, UP],
+    [LEFT, RIGHT],
+    [RIGHT, LEFT],
+    [LOWER_L, UPPER_R],
+    [LOWER_R, UPPER_L],
+    [UPPER_L, LOWER_R],
+    [UPPER_R, LOWER_L]
+])
 
 // --- OPEN STATES GATE --- //
 const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
@@ -84,9 +117,10 @@ const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
  * @returns {boolean} true if
  */
 function isWall(position) {
-  let eventAtPosition = $gameMap.eventsXy(position[0], position[1])[0];
-  const isUnopenedGate = !!eventAtPosition.gate && eventAtPosition.gate.state !== eventAtPosition.gate.requiredNumberButtonsPressed;
-  return eventAtPosition.isWall || isUnopenedGate || !!eventAtPosition.pushable;
+  return $gameMap.eventsXy(position[0], position[1]).some(eventAtPosition => {
+    const isUnopenedGate = !!eventAtPosition.gate && eventAtPosition.gate.state !== eventAtPosition.gate.requiredNumberButtonsPressed;
+    return eventAtPosition.isWall || isUnopenedGate || !!eventAtPosition.pushable;
+  })
 }
 
 function spikeOn(event) {
@@ -113,6 +147,28 @@ function touching(eventA, eventB) {
   return eventA.x === eventB.x && eventA.y === eventB.y;
 }
 
+function surroundingOffsets(centralEvent, eventsToCheckFor) {
+  const coordinateOffsets = Array.from(validDirectionsCoordinateOffset.values());
+  const surroundingOffsets = [];
+  for (let i = 0; i < coordinateOffsets.length; i++) {
+    const offset = coordinateOffsets[i];
+    const offsetX = offset[0];
+    const offsetY = offset[1];
+    if ((eventsToCheckFor.some(event => event.x === centralEvent.x + offsetX && event.y === centralEvent.y + offsetY))) {
+      surroundingOffsets.push(coordinateOffsets[i]);
+    }
+  }
+  return surroundingOffsets;
+}
+
+function anyAdjacent(targetEvent, eventsToCheckFor, direction, aoe = 1) {
+  let directionOffset = validDirectionsCoordinateOffset.get(direction);
+  const offsetX = directionOffset[0];
+  const offsetY = directionOffset[1];
+  return !!eventsToCheckFor.some(event => event.x === targetEvent.x + offsetX * aoe && event.y === targetEvent.y + offsetY * aoe);
+
+}
+
 (function() {
   const params = PluginManager.parameters("chess");
 
@@ -123,7 +179,7 @@ function touching(eventA, eventB) {
   let spikeEvents = [];
   let pitEvents = [];
   let conveyorBeltEvents = [];
-  let gateEvents = [];
+  let gateEvents = new Set();
   let buttonEvents = [];
   let boulderEvents = [];
   let pushableEvents = [];
@@ -138,7 +194,7 @@ function touching(eventA, eventB) {
     spikeEvents = [];
     pitEvents = [];
     conveyorBeltEvents = [];
-    gateEvents = [];
+    gateEvents = new Set();
     buttonEvents = [];
     boulderEvents = [];
     pushableEvents = [];
@@ -152,12 +208,12 @@ function touching(eventA, eventB) {
   Game_Map.prototype.pits = function() { return pitEvents };
   Game_Map.prototype.spikes = function() { return spikeEvents };
   Game_Map.prototype.conveyors = function() { return conveyorBeltEvents };
-  Game_Map.prototype.gates = function() { return gateEvents };
+  Game_Map.prototype.gates = function() { return Array.from(gateEvents) };
   Game_Map.prototype.buttons = function() { return buttonEvents };
   Game_Map.prototype.activeFlameTimeouts = function() { return activeFlameTimeouts };
   Game_Map.prototype.boulders = function() { return boulderEvents; }
   Game_Map.prototype.blockingEvents = function() {
-    const unopenedGates = gateEvents.filter(gateEvent => gateEvent.gate.state !== gateEvent.gate.requiredNumberButtonsPressed);
+    const unopenedGates = this.gates().filter(gateEvent => gateEvent.gate.state !== gateEvent.gate.requiredNumberButtonsPressed);
     return wallEvents.concat(unopenedGates);
   }
   Game_Map.prototype.pushables = function() { return pushableEvents; }
@@ -179,7 +235,7 @@ function touching(eventA, eventB) {
       if (comment.match(/<chess:wall>/i)) {
         this.isWall = true;
         $gameMap.walls().push(this);
-      } else if (comment.match(/<chess:spike>/i)) { // TODO: add timing here instead of in event
+      } else if (comment.match(/<chess:spike>/i)) {
         this.spike = { opposite: false };
         $gameMap.spikes().push(this);
       } else if (comment.match(/<chess:spike:opp>/i)) {
@@ -226,11 +282,17 @@ function touching(eventA, eventB) {
         } else {
           flameEvents[flameGroup].push(this);
         }
-      } else if (comment.match(/<chess:button:([a-d])>/i)) {
-        const buttonGroup = comment.match(/<chess:button:([a-d])>/i)[1];
+      } else if (comment.match(/<chess:button:([a-d]):?(true|false)?>/i)) {
+        const match = comment.match(/<chess:button:([a-d]):?(true|false)?>/i);
+        const buttonGroup = match[1];
+        let hold = false;
+        if (match.length === 3) {
+          hold = Boolean(match[2]);
+        }
         this.button = {
           activated: false,
-          group: buttonGroup.toUpperCase()
+          group: buttonGroup.toUpperCase(),
+          hold
         }
         $gameMap.buttons().push(this);
       } else if (comment.match(/<chess:gate:([a-d]):?([1-4]?)>/i)) {
@@ -243,19 +305,20 @@ function touching(eventA, eventB) {
           group: gateGroup.toUpperCase(),
           requiredNumberButtonsPressed: requiredNumButtonsPressed
         }
-        $gameMap.gates().push(this);
+        gateEvents.add(this);
       } else if (comment.match(/<chess:boulder:?(left|right|up|down)?>/i)) {
         $gameMap.boulders().push(this);
       } else if (comment.match(/<chess:pushable:?(left|right|up|down)*>/i)) {
         let pushable = comment.match(/<chess:pushable:?(left|right|up|down)*>/i);
         let redirection;
         if (pushable.length) {
-          redirection = directionMap[pushable[1]];
+          redirection = directionMap.get([pushable[1]]);
         }
-        this.pushable = { redirection };
-        pushableEvents.push(this);
+        this.pushable = { redirection, invalidOffsets: [] };
+        $gameMap.pushables().push(this);
       }
     });
+    $gameMap.pushables().forEach(pushable => pushable.invalidOffsets = surroundingOffsets(pushable, $gameMap.blockingEvents()));
   };
 
   const Chess_Update_Events = Game_Map.prototype.updateEvents;
@@ -363,14 +426,20 @@ function touching(eventA, eventB) {
       pushable.isTouchingPlayer = pushable.x === playerCoordinates[0] && pushable.y === playerCoordinates[1];
 
       if (pushable.isTouchingPlayer && $gamePlayer.isMoveRouteForcing() && !pushable.isMoveRouteForcing()) {
-        const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false};
-        route.list.push($gamePlayer._moveRoute.list[$gamePlayer._moveRouteIndex]);
-        route.list.push({code: Game_Character.ROUTE_END});
-        pushable.forceMoveRoute(route);
-        AudioManager.playSe(PUSHING_SE);
-        $gamePlayer.setThrough(false);
-        $gamePlayer.processRouteEnd();
-        $gamePlayer.pushing = true
+        const direction = $gamePlayer._moveRoute.list.find(movement => validDirections.includes(movement.code));
+        const directionOffset = validDirectionsCoordinateOffset.get(direction.code);
+        const intoImmovable = pushable.pushable.invalidOffsets.some(offset => offset[0] === directionOffset[0] && offset[1] === directionOffset[1]);
+        if (!intoImmovable) {
+          // TODO fix pushing away event means no longer walkable where event was
+          const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false, wait: false};
+          route.list.push(direction);
+          route.list.push({code: Game_Character.ROUTE_END});
+          pushable.forceMoveRoute(route);
+          AudioManager.playSe(PUSHING_SE);
+          $gamePlayer.setThrough(false);
+          $gamePlayer.processRouteEnd();
+          $gamePlayer.pushing = true;
+        }
       }
     });
   }
@@ -382,7 +451,6 @@ function touching(eventA, eventB) {
       boulder.isTouchingPlayer = boulder.x === playerCoordinates[0] && boulder.y === playerCoordinates[1];
       const isTouchingPushable = this.pushables()
           .some(pushable => !!pushable.pushable.redirection && touching(pushable, boulder));
-      const isTouchingWall = this.blockingEvents().some(blockingEvent => touching(blockingEvent, boulder));
 
       if (isTouchingPushable && !boulder.isTouchingPassable && boulder.isMoveRouteForcing()) {
         const jumpCommand = { code: Game_Character.ROUTE_JUMP, parameters: [-1, 0] };
@@ -390,12 +458,6 @@ function touching(eventA, eventB) {
       }
 
       boulder.isTouchingPassable = isTouchingPushable;
-
-      if (isTouchingWall) {
-        AudioManager.playSe(BREAKING_BOULDER_SE);
-        boulder.setThrough(false);
-        boulder.processRouteEnd();
-      }
 
       if (boulder.isTouchingPlayer) { this.playerDie(); }
     });
@@ -410,6 +472,12 @@ function touching(eventA, eventB) {
       if (conveyorBeltEvent.isTouchingPlayer && !$gamePlayer.isMoveRouteForcing()) {
         conveyorBeltEvent.activateConveyorBelt();
       }
+
+      this.pushables().filter(pushable => !pushable.isMoveRouteForcing()).forEach(pushable => {
+        if (touching(conveyorBeltEvent, pushable)) {
+          conveyorBeltEvent.activateConveyorBelt(pushable);
+        }
+      })
     });
   }
 
@@ -433,13 +501,14 @@ function touching(eventA, eventB) {
   }
 
   Game_Map.prototype.checkButtonActivation = function() {
-    this.buttons().filter(buttonEvent => !buttonEvent.button.activated).forEach(buttonEvent => {
+    this.buttons().forEach(buttonEvent => {
       const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
       buttonEvent.isTouchingPlayer = buttonEvent.x === playerCoordinates[0] && buttonEvent.y === playerCoordinates[1];
       buttonEvent.isWeightedDown = this.weightedEvents().some(event => event.x === buttonEvent.x && event.y === buttonEvent.y);
 
-      if (buttonEvent.isTouchingPlayer || buttonEvent.isWeightedDown) {
+      if ((buttonEvent.isTouchingPlayer || buttonEvent.isWeightedDown) && !buttonEvent.button.activated) {
         buttonEvent.button.activated = true;
+        $gameSelfSwitches.setValue([this.mapId(), buttonEvent._eventId, 'A'], true);
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.requiredNumberButtonsPressed > gateEventToActivate.gate.state) {
             gateEventToActivate.gate.state++;
@@ -447,7 +516,31 @@ function touching(eventA, eventB) {
           }
         });
       }
+
+      if (!buttonEvent.isTouchingPlayer && !buttonEvent.isWeightedDown && buttonEvent.button.hold && buttonEvent.button.activated) {
+        buttonEvent.button.activated = false;
+        $gameSelfSwitches.setValue([this.mapId(), buttonEvent._eventId, 'A'], false);
+        this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
+          if (gateEventToActivate.gate.state > 0) {
+            $gameSelfSwitches.setValue([this.mapId(), gateEventToActivate._eventId, OPEN_STATES[gateEventToActivate.gate.state]], false);
+            gateEventToActivate.gate.state--;
+          }
+        });
+      }
     })
+  }
+
+  Game_Event.prototype.activateConveyorBelt = function(event) {
+    const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false, wait: true};
+    route.list.push({code: this.conveyor.direction});
+    route.list.push({code: Game_Character.ROUTE_THROUGH_OFF});
+    route.list.push({code: Game_Character.ROUTE_END});
+    if (event) {
+      route.wait = false;
+      event.forceMoveRoute(route);
+    } else {
+      $gamePlayer.forceMoveRoute(route);
+    }
   }
 
   Game_Map.prototype.updateChessEvents = function() {
@@ -464,12 +557,13 @@ function touching(eventA, eventB) {
     this.updatePitTraps();
   }
 
-  Game_Event.prototype.activateConveyorBelt = function() {
-    const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false};
-    route.list.push({code: this.conveyor.direction});
-    route.list.push({code: Game_Character.ROUTE_THROUGH_OFF});
-    route.list.push({code: Game_Character.ROUTE_END});
-    $gamePlayer.forceMoveRoute(route);
+  const Chess_Event_Route_End = Game_Event.prototype.processRouteEnd;
+  Game_Event.prototype.processRouteEnd = function() {
+    Chess_Event_Route_End.call(this);
+    if (this.pushable) {
+      this.pushable.invalidOffsets = surroundingOffsets(this, $gameMap.blockingEvents());
+      $gamePlayer.pushing = false;
+    }
   }
 
   // ---------------------------------------- CHESS HIGHLIGHT ---------------------------------------- //
@@ -565,14 +659,6 @@ function touching(eventA, eventB) {
     AudioManager.playSe(movementSoundEffects[randomSEIndex]);
   }
 
-  const Chess_Event_Route_End = Game_Event.prototype.processRouteEnd;
-  Game_Event.prototype.processRouteEnd = function() {
-    Chess_Event_Route_End.call(this);
-    if (this.pushable) {
-      $gamePlayer.pushing = false;
-    }
-  }
-
   const Chess_Route_End = Game_Player.prototype.processRouteEnd;
   Game_Player.prototype.processRouteEnd = function() {
     Chess_Route_End.call(this);
@@ -635,13 +721,13 @@ function touching(eventA, eventB) {
       const route = {list: [{code: Game_Character.ROUTE_THROUGH_ON}], repeat: false, skippable: false};
       let routeCode;
       if (horizontalMovement > 0 && verticalMovement > 0) {
-        routeCode = Game_Character.ROUTE_MOVE_UPPER_R;
+        routeCode = UPPER_R;
       } else if (horizontalMovement < 0 && verticalMovement < 0) {
-        routeCode = Game_Character.ROUTE_MOVE_LOWER_L;
+        routeCode = LOWER_L;
       } else if (horizontalMovement < 0 && verticalMovement > 0) {
-        routeCode = Game_Character.ROUTE_MOVE_UPPER_L;
+        routeCode = UPPER_L;
       } else if (horizontalMovement > 0 && verticalMovement < 0) {
-        routeCode = Game_Character.ROUTE_MOVE_LOWER_R;
+        routeCode = LOWER_R;
       }
       for (let i = 0; i < Math.abs(verticalMovement); i++) {
         route.list.push({code: routeCode})
