@@ -33,6 +33,7 @@ function isWall(position) {
   return !!$gameMap.eventsXy(position[0], position[1])[0].isWall;
 }
 
+const MOVING = 2;
 const LOAD_EVENT = 6;
 const SPIKE_ON_EVENT = 22;
 const HORSE_SWITCH = 18;
@@ -85,29 +86,31 @@ const HOVER_ICON = 31;
   }
 
   Game_Map.prototype.updateChessEvents = function() {
-    this.events().forEach(event => {
-      const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
-      const touchingPlayer = event.x === playerCoordinates[0] && event.y === playerCoordinates[1];
-      if (!!event.pit && !event.pit.isActivated && event.isTouchingPlayer && !touchingPlayer) {
-        // true if the player was previously on this event but is moving away
-        // TODO: play sound effect
-        $gameSelfSwitches.setValue([this.mapId(), event._eventId, 'A'], true);
-        event.pit.isActivated = true;
-      }
-      event.isTouchingPlayer = touchingPlayer;
-      if (event.isSpike() && event.isTouchingPlayer && spikeOn(event)) {
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
-      } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
-      } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
-        $gameTemp.reserveCommonEvent(LOAD_EVENT);
-      } else if (event.isPawn) {
-        const pawnRoute = this.checkEatPawn([event.x, event.y], playerCoordinates);
-        if (pawnRoute) {
-          this.pawnAttack(event, pawnRoute);
+    if (!$gameSwitches.value(MOVING)) {
+      this.events().forEach(event => {
+        const playerCoordinates = [$gamePlayer.x, $gamePlayer.y];
+        const touchingPlayer = event.x === playerCoordinates[0] && event.y === playerCoordinates[1];
+        if (!!event.pit && !event.pit.isActivated && event.isTouchingPlayer && !touchingPlayer) {
+          // true if the player was previously on this event but is moving away
+          // TODO: play sound effect
+          $gameSelfSwitches.setValue([this.mapId(), event._eventId, 'A'], true);
+          event.pit.isActivated = true;
         }
-      }
-    });
+        event.isTouchingPlayer = touchingPlayer;
+        if (event.isSpike() && event.isTouchingPlayer && spikeOn(event)) {
+          $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
+          $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        } else if (!!event.pit && event.isTouchingPlayer && event.pit.isActivated) {
+          $gameTemp.reserveCommonEvent(LOAD_EVENT);
+        } else if (event.isPawn) {
+          const pawnRoute = this.checkEatPawn([event.x, event.y], playerCoordinates);
+          if (pawnRoute) {
+            this.pawnAttack(event, pawnRoute);
+          }
+        }
+      });
+    }
   }
 
   // TODO: fix this, it does not actually work...
