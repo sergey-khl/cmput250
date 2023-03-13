@@ -111,7 +111,14 @@ const OPEN_STATES = [undefined, 'A', 'B', 'C', 'D'];
 function isWall(position) {
   return $gameMap.eventsXy(position[0], position[1]).some(eventAtPosition => {
     const isUnopenedGate = !!eventAtPosition.gate && eventAtPosition.gate.state !== eventAtPosition.gate.requiredNumberButtonsPressed;
-    return eventAtPosition.isWall || isUnopenedGate || !!eventAtPosition.pushable;
+    let blockedConveyor = false;
+    if (!!eventAtPosition.conveyor) {
+      const conveyorOffset = validDirectionsCoordinateOffset.get(eventAtPosition.conveyor.direction);
+      blockedConveyor = $gameMap.eventsXy(eventAtPosition.x + conveyorOffset[0], eventAtPosition.y + conveyorOffset[1]).some(event => {
+        return !!event.pushable && event.pushable.invalidOffsets.some(offset => offset[0] === conveyorOffset[0] && offset[1] === conveyorOffset[1]);
+      });
+    }
+    return eventAtPosition.isWall || isUnopenedGate || blockedConveyor;
   })
 }
 
