@@ -71,7 +71,8 @@ const BUTTON_SWITCH_SE_NAME = "buttonSWITCH";
 const BUTTON_SWITCH_SE = { name: BUTTON_SWITCH_SE_NAME, volume: 70, pitch: 110 };
 const BUTTON_OFF_SE_NAME = "buttonOFF";
 const BUTTON_OFF_SE = { name: BUTTON_OFF_SE_NAME, volume: 70, pitch: 90 };
-
+const GATE_OPEN_SE_NAME = "Open2"
+const GATE_OPEN_SE = { name: GATE_OPEN_SE_NAME, volume: 60, pitch: 100 };
 // --- IMAGES --- //
 const SUN_FLARE_IMAGE = {"tileId": 0, "characterName": "!Flame", "direction": 3, "pattern": 0, "characterIndex": 6};
 const FIRE_IMAGE = {"tileId": 0, "characterName": "!Other2", "direction": 1, "pattern": 0, "characterIndex": 3};
@@ -545,6 +546,7 @@ const SPIKE_TIMING = 2000;
         this.gates().filter(gateEvent => gateEvent.gate.group === buttonEvent.button.group).forEach(gateEventToActivate => {
           if (gateEventToActivate.gate.requiredNumberButtonsPressed > gateEventToActivate.gate.state) {
             gateEventToActivate.gate.state++;
+            AudioManager.playSe(GATE_OPEN_SE);
             $gameSelfSwitches.setValue([this.mapId(), gateEventToActivate._eventId, OPEN_STATES[gateEventToActivate.gate.state]], true);
           }
         });
@@ -558,6 +560,7 @@ const SPIKE_TIMING = 2000;
           if (gateEventToActivate.gate.state > 0) {
             $gameSelfSwitches.setValue([this.mapId(), gateEventToActivate._eventId, OPEN_STATES[gateEventToActivate.gate.state]], false);
             gateEventToActivate.gate.state--;
+            AudioManager.playSe(GATE_OPEN_SE);
           }
         });
       }
