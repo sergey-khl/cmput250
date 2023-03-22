@@ -757,7 +757,7 @@ Imported['DK_Mouse_System'] = '1.2.0';
     Scene_Map.prototype.checkEventsUnderMouse = function(x, y) {
         const mapX = $gameMap.canvasToMapX(x);
         const mapY = $gameMap.canvasToMapY(y);
-        const events = $gameMap.eventsXy(mapX, mapY);
+        const events = $gameMap.eventsXy(mapX, mapY).slice(0, 1);
         const sprite = this._mouseSystemSprite;
 
         sprite.visible = false;

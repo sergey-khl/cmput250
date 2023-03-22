@@ -36,8 +36,12 @@ const BISHOP_SWITCH = 20;
 const ROOK_SWITCH = 19;
 
 // --- HOVER --- //
-const HOVER_ICON = 31;
-const HOVER_ICON_COMMENT = "<hover_icon:" + HOVER_ICON + ">";
+const WALK_ICON = 31;
+const DEATH_ICON = 1;
+const PUSH_ICON = 77;
+const CONVEYOR_ICON = 82;
+const EXIT_ICON = 72;
+
 
 // --- SOUND EFFECTS --- //
 const SPIKE_DEATH_SE_NAME = "spikeDEATH";
@@ -175,6 +179,10 @@ function surroundingOffsets(centralEvent, eventsToCheckFor) {
     }
   }
   return surroundingOffsets;
+}
+
+function getIconComment(iconIndex) {
+  return "<hover_icon:" + iconIndex + ">";
 }
 
 const SPIKE_TIMING = 2000;
@@ -340,6 +348,8 @@ const SPIKE_TIMING = 2000;
         }
         this.pushable = { redirection, invalidOffsets: [] };
         $gameMap.pushables().push(this);
+      }  else if (comment.match(/<chess:exit>/i)) {
+        this.isExit = true;
       }
     });
     $gameMap.pushables().forEach(pushable => pushable.invalidOffsets = surroundingOffsets(pushable, $gameMap.blockingEvents()));
@@ -372,6 +382,14 @@ const SPIKE_TIMING = 2000;
       const flamesToActivate = flameGroup.filter(event => event.flame.triggered && !event.flame.active && !event.flame.activating);
       flamesToActivate.forEach(event => event.activateFlame());
     });
+  }
+
+  Game_Event.prototype.isDeadly = function() {
+    const isActivatedSpike = this.spike && this.spike.active;
+    const isActiveFlame = this.flame && this.flame.active;
+    const isPitTrap = this.pit && this.pit.isActivated;
+    const isBoulder = $gameMap.boulders().some(event => event === this);
+    return isActivatedSpike || isActiveFlame || isPitTrap || isBoulder;
   }
 
   Game_Event.prototype.triggerFlame = function() {
@@ -592,6 +610,7 @@ const SPIKE_TIMING = 2000;
     this.checkFlameDeath();
     this.updateBoulders();
     this.updatePitTraps();
+    $gamePlayer.highlightChessMoves();
   }
 
   const Chess_Event_Route_End = Game_Event.prototype.processRouteEnd;
@@ -638,8 +657,26 @@ const SPIKE_TIMING = 2000;
 
   function highlight(event) {
     if (!event.mouseSettings.hoverIcon) {
-      event.mouseSettings.hoverIcon = HOVER_ICON;
-      event.event().pages.forEach(page => page.list.push({"code":108,"indent":0,"parameters":[HOVER_ICON_COMMENT]}))
+      let hoverIcon = WALK_ICON;
+      if (event.isWall) {
+        return;
+      } else if (!!event.pushable) {
+        hoverIcon = PUSH_ICON;
+      } else if (event.isDeadly()) {
+        hoverIcon = DEATH_ICON;
+      } else if (!!event.conveyor) {
+        hoverIcon = CONVEYOR_ICON;
+      } else if (!!event.isExit) {
+        hoverIcon = EXIT_ICON;
+      }
+      event.mouseSettings.hoverIcon = hoverIcon;
+      // let currentIconIndex = event.page().list.findIndex(command => !!command["parameters"] && command["parameters"].contains("hover_icon"));
+      // if (currentIconIndex !== -1) {
+      //   console.log("replacing icon");
+      //   event.page().list[currentIconIndex]["parameters"] = getIconComment(hoverIcon);
+      // } else {
+      //   event.event().pages.forEach(page => page.list.push({"code":108,"indent":0,"parameters":[getIconComment(hoverIcon)]}));
+      // }
     }
   }
 
