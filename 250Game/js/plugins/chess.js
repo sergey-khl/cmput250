@@ -41,6 +41,7 @@ const DEATH_ICON = 1;
 const PUSH_ICON = 77;
 const CONVEYOR_ICON = 82;
 const EXIT_ICON = 72;
+const BUTTON_ICON = 74;
 
 
 // --- SOUND EFFECTS --- //
@@ -668,15 +669,16 @@ const SPIKE_TIMING = 2000;
         hoverIcon = CONVEYOR_ICON;
       } else if (!!event.isExit) {
         hoverIcon = EXIT_ICON;
+      } else if (!!event.button && !event.button.activated) {
+        hoverIcon = BUTTON_ICON;
       }
-      event.mouseSettings.hoverIcon = hoverIcon;
-      // let currentIconIndex = event.page().list.findIndex(command => !!command["parameters"] && command["parameters"].contains("hover_icon"));
-      // if (currentIconIndex !== -1) {
-      //   console.log("replacing icon");
-      //   event.page().list[currentIconIndex]["parameters"] = getIconComment(hoverIcon);
-      // } else {
-      //   event.event().pages.forEach(page => page.list.push({"code":108,"indent":0,"parameters":[getIconComment(hoverIcon)]}));
-      // }
+      if (hoverIcon !== event.mouseSettings.hoverIcon) {
+        event.mouseSettings.hoverIcon = hoverIcon;
+        const scene = SceneManager._scene;
+        if (scene instanceof Scene_Map && scene.isActive() && !$gameMessage.isBusy()) {
+          scene.checkEventsUnderMouse(TouchInput.x, TouchInput.y); // TRIGGER ICON CHANGE DETECTION
+        }
+      }
     }
   }
 
