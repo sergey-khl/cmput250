@@ -606,9 +606,11 @@ Imported['DK_Mouse_System'] = '1.2.0';
                 }
 
                 if (event.mouseSettings.clickActivate) {
-                    event.start();
-
-                    return true;
+                    if (Math.abs(event.x - $gamePlayer.x) < event.mouseSettings.clickDistance && Math.abs(event.y - $gamePlayer.y) < event.mouseSettings.clickDistance) {
+                        event.start();
+                        return true
+                    }
+                    return false;
                 }
 
                 return false;
@@ -671,7 +673,12 @@ Imported['DK_Mouse_System'] = '1.2.0';
                 }
 
                 this.mouseSettings.hoverIcon = iconIndex;
-            } else if (!this.mouseSettings.clickActivate && comment.match(/<click_activate>/i)) {
+            } else if (!this.mouseSettings.clickActivate && comment.match(/<click_activate:?(\d*)?>/i)) {
+                const match =  comment.match(/<click_activate:?(\d*)?>/i);
+                this.mouseSettings.clickDistance = 1000;
+                if (match[1]) {
+                    this.mouseSettings.clickDistance = parseInt(match[1]);
+                }
                 this.mouseSettings.clickActivate = true;
             } else if (!this.mouseSettings.hoverActivate && comment.match(/<hover_activate>/i)) {
                 this.mouseSettings.hoverActivate = true;
