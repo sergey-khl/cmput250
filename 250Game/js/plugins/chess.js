@@ -41,6 +41,7 @@ const DEATH_ICON = 1;
 const PUSH_ICON = 77;
 const CONVEYOR_ICON = 82;
 const EXIT_ICON = 72;
+const BUTTON_ICON = 74;
 
 
 // --- SOUND EFFECTS --- //
@@ -181,10 +182,6 @@ function surroundingOffsets(centralEvent, eventsToCheckFor) {
   return surroundingOffsets;
 }
 
-function getIconComment(iconIndex) {
-  return "<hover_icon:" + iconIndex + ">";
-}
-
 const SPIKE_TIMING = 2000;
 (function() {
   PluginManager.parameters("chess");
@@ -199,6 +196,14 @@ const SPIKE_TIMING = 2000;
   let buttonEvents = [];
   let boulderEvents = [];
   let pushableEvents = [];
+  Input.keyMapper[37] = undefined;
+  Input.keyMapper[38] = undefined;
+  Input.keyMapper[39] = undefined;
+  Input.keyMapper[40] = undefined;
+  Input.keyMapper[98] = undefined;
+  Input.keyMapper[100] = undefined;
+  Input.keyMapper[102] = undefined;
+  Input.keyMapper[104] = undefined;
 
   const Chess_Game_Map_Setup = Game_Map.prototype.setup;
   Game_Map.prototype.setup = function () {
@@ -409,6 +414,7 @@ const SPIKE_TIMING = 2000;
     this.flame.activating = true;
     const timeoutIdActivating = setTimeout(() => {
       this.flame.triggered = false;
+      this.flame.activating = false;
       this.flame.active = true;
       stopSEByName(FIRE_TRIGGERED_SE_NAME);
       AudioManager.playSe(FLAME_ACTIVE_SE);
@@ -417,7 +423,6 @@ const SPIKE_TIMING = 2000;
         this.setImage('', 0);
         stopSEByName(FLAME_ACTIVE_SE_NAME);
         this.flame.active = false;
-        this.flame.activating = false;
         this.setTileImage(SUN_FLARE_IMAGE.characterName, 3, 5);
         const index = $gameMap.activeFlameTimeouts().indexOf(timeoutIdActive);
         $gameMap.activeFlameTimeouts().splice(index, 1);
@@ -656,27 +661,26 @@ const SPIKE_TIMING = 2000;
   }
 
   function highlight(event) {
-    if (!event.mouseSettings.hoverIcon) {
-      let hoverIcon = WALK_ICON;
-      if (event.isWall) {
-        return;
-      } else if (!!event.pushable) {
-        hoverIcon = PUSH_ICON;
-      } else if (event.isDeadly()) {
-        hoverIcon = DEATH_ICON;
-      } else if (!!event.conveyor) {
-        hoverIcon = CONVEYOR_ICON;
-      } else if (!!event.isExit) {
-        hoverIcon = EXIT_ICON;
-      }
+    let hoverIcon = WALK_ICON;
+    if (event.isWall) {
+      return;
+    } else if (!!event.pushable) {
+      hoverIcon = PUSH_ICON;
+    } else if (event.isDeadly()) {
+      hoverIcon = DEATH_ICON;
+    } else if (!!event.conveyor) {
+      hoverIcon = CONVEYOR_ICON;
+    } else if (!!event.isExit) {
+      hoverIcon = EXIT_ICON;
+    } else if (!!event.button && !event.button.activated) {
+      hoverIcon = BUTTON_ICON;
+    }
+    if (hoverIcon !== event.mouseSettings.hoverIcon) {
       event.mouseSettings.hoverIcon = hoverIcon;
-      // let currentIconIndex = event.page().list.findIndex(command => !!command["parameters"] && command["parameters"].contains("hover_icon"));
-      // if (currentIconIndex !== -1) {
-      //   console.log("replacing icon");
-      //   event.page().list[currentIconIndex]["parameters"] = getIconComment(hoverIcon);
-      // } else {
-      //   event.event().pages.forEach(page => page.list.push({"code":108,"indent":0,"parameters":[getIconComment(hoverIcon)]}));
-      // }
+      const scene = SceneManager._scene;
+      if (scene instanceof Scene_Map && scene.isActive() && !$gameMessage.isBusy()) {
+        scene.checkEventsUnderMouse(TouchInput.x, TouchInput.y); // TRIGGER ICON CHANGE DETECTION
+      }
     }
   }
 
