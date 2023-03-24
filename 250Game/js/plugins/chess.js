@@ -410,6 +410,7 @@ const SPIKE_TIMING = 2000;
     this.flame.activating = true;
     const timeoutIdActivating = setTimeout(() => {
       this.flame.triggered = false;
+      this.flame.activating = false;
       this.flame.active = true;
       stopSEByName(FIRE_TRIGGERED_SE_NAME);
       AudioManager.playSe(FLAME_ACTIVE_SE);
@@ -418,7 +419,6 @@ const SPIKE_TIMING = 2000;
         this.setImage('', 0);
         stopSEByName(FLAME_ACTIVE_SE_NAME);
         this.flame.active = false;
-        this.flame.activating = false;
         this.setTileImage(SUN_FLARE_IMAGE.characterName, 3, 5);
         const index = $gameMap.activeFlameTimeouts().indexOf(timeoutIdActive);
         $gameMap.activeFlameTimeouts().splice(index, 1);
@@ -657,27 +657,25 @@ const SPIKE_TIMING = 2000;
   }
 
   function highlight(event) {
-    if (!event.mouseSettings.hoverIcon) {
-      let hoverIcon = WALK_ICON;
-      if (event.isWall) {
-        return;
-      } else if (!!event.pushable) {
-        hoverIcon = PUSH_ICON;
-      } else if (event.isDeadly()) {
-        hoverIcon = DEATH_ICON;
-      } else if (!!event.conveyor) {
-        hoverIcon = CONVEYOR_ICON;
-      } else if (!!event.isExit) {
-        hoverIcon = EXIT_ICON;
-      } else if (!!event.button && !event.button.activated) {
-        hoverIcon = BUTTON_ICON;
-      }
-      if (hoverIcon !== event.mouseSettings.hoverIcon) {
-        event.mouseSettings.hoverIcon = hoverIcon;
-        const scene = SceneManager._scene;
-        if (scene instanceof Scene_Map && scene.isActive() && !$gameMessage.isBusy()) {
-          scene.checkEventsUnderMouse(TouchInput.x, TouchInput.y); // TRIGGER ICON CHANGE DETECTION
-        }
+    let hoverIcon = WALK_ICON;
+    if (event.isWall) {
+      return;
+    } else if (!!event.pushable) {
+      hoverIcon = PUSH_ICON;
+    } else if (event.isDeadly()) {
+      hoverIcon = DEATH_ICON;
+    } else if (!!event.conveyor) {
+      hoverIcon = CONVEYOR_ICON;
+    } else if (!!event.isExit) {
+      hoverIcon = EXIT_ICON;
+    } else if (!!event.button && !event.button.activated) {
+      hoverIcon = BUTTON_ICON;
+    }
+    if (hoverIcon !== event.mouseSettings.hoverIcon) {
+      event.mouseSettings.hoverIcon = hoverIcon;
+      const scene = SceneManager._scene;
+      if (scene instanceof Scene_Map && scene.isActive() && !$gameMessage.isBusy()) {
+        scene.checkEventsUnderMouse(TouchInput.x, TouchInput.y); // TRIGGER ICON CHANGE DETECTION
       }
     }
   }
