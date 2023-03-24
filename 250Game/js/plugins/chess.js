@@ -182,10 +182,6 @@ function surroundingOffsets(centralEvent, eventsToCheckFor) {
   return surroundingOffsets;
 }
 
-function getIconComment(iconIndex) {
-  return "<hover_icon:" + iconIndex + ">";
-}
-
 const SPIKE_TIMING = 2000;
 (function() {
   PluginManager.parameters("chess");
@@ -200,6 +196,14 @@ const SPIKE_TIMING = 2000;
   let buttonEvents = [];
   let boulderEvents = [];
   let pushableEvents = [];
+  Input.keyMapper[37] = undefined;
+  Input.keyMapper[38] = undefined;
+  Input.keyMapper[39] = undefined;
+  Input.keyMapper[40] = undefined;
+  Input.keyMapper[98] = undefined;
+  Input.keyMapper[100] = undefined;
+  Input.keyMapper[102] = undefined;
+  Input.keyMapper[104] = undefined;
 
   const Chess_Game_Map_Setup = Game_Map.prototype.setup;
   Game_Map.prototype.setup = function () {
