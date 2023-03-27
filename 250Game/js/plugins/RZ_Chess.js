@@ -26,11 +26,39 @@
  DIRECTION is one of (left/right/up/down)
  Creates a tile that pushes the player in the provided direction
  *
-*/
+ *
+ *
+ * @param icons
+ * @text Hover Icons (Unimplemented)
+ *
+ * @param walk
+ * @text Walk Icon
+ * @parent icons
+ * @number
+ *
+ * @param trackingVariables
+ * @text Statistics Variables
+ *
+ * @param deathCount
+ * @text Death Count Variable
+ * @parent trackingVariables
+ * @type variable
+ *
+ * @param moveCount
+ * @text Move Count Variable (Unimplemented)
+ * @parent trackingVariables
+ * @type variable
+ *
+ * @param switches
+ * @text Switches (Unimplemented)
+ *
+ * @TODO add SWITCH parameters, add SE parameters
+ */
 
+
+const LOAD_EVENT = 6;
 
 // --- SWITCHES --- //
-const LOAD_EVENT = 6;
 const HORSE_SWITCH = 18;
 const BISHOP_SWITCH = 20;
 const ROOK_SWITCH = 19;
@@ -184,7 +212,8 @@ function surroundingOffsets(centralEvent, eventsToCheckFor) {
 
 const SPIKE_TIMING = 2000;
 (function() {
-  PluginManager.parameters("chess");
+  const chessParameters = PluginManager.parameters("RZ_Chess");
+
   let tickCounter = 0;
   let flameEvents = Array(10);
   let activeFlameTimeouts = [];
@@ -370,6 +399,10 @@ const SPIKE_TIMING = 2000;
     if (!$gamePlayer.isImmune) {
       if (deathSoundEffect) {
         AudioManager.playSe(deathSoundEffect);
+      }
+      const deathCountVariableId = parseInt(chessParameters.deathCount);
+      if (deathCountVariableId) {
+        $gameVariables.setValue(deathCountVariableId, $gameVariables.value(deathCountVariableId) + 1);
       }
       $gameTemp.reserveCommonEvent(LOAD_EVENT);
       $gameSwitches.clear();
