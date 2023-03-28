@@ -1,7 +1,7 @@
 /*:
  * @author Sergey Khlynovskiy
  * @author Ian Gauk
- * @plugindesc Controls chess movement
+ * @plugindesc Controls chess movement and adds trap functionalities
  * 
  * @help Provides functionality for a chess game, such as player movement and traps. Made specificially
  * for the underpromotion chess game.
@@ -26,22 +26,94 @@
  DIRECTION is one of (left/right/up/down)
  Creates a tile that pushes the player in the provided direction
  *
-*/
+ * https://forums.rpgmakerweb.com/index.php?threads/introduction-to-the-new-plugin-manager-in-rpg-maker-mv-1-5-0.79764/
+ *
+ *
+ * @param icons
+ * @text Hover Icons
+ *
+ * @param walkIcon
+ * @text Walk Icon
+ * @parent icons
+ * @number
+ *
+ * @param deadlyIcon
+ * @text Deadly Icon
+ * @desc Icon index that shows when hovering over deadly elements
+ * @parent icons
+ * @number
+ *
+ * @param pushIcon
+ * @text Push Icon
+ * @desc Icon index that shows when hovering over pushable events
+ * @parent icons
+ * @number
+ *
+ * @param conveyorIcons
+ * @text Conveyor Icons
+ * @desc Icon set to display when hovering over conveyor belts
+ * @parent icons
+ *
+ * @param conveyorIconDown
+ * @parent conveyorIcons
+ * @number
+ *
+ * @param conveyorIconLeft
+ * @parent conveyorIcons
+ * @number
+ *
+ * @param conveyorIconRight
+ * @parent conveyorIcons
+ * @number
+ *
+ * @param conveyorIconUp
+ * @parent conveyorIcons
+ * @number
+ *
+ * @param exitIcon
+ * @text Exit Icon
+ * @desc Icon index that shows when hovering over exit events
+ * @parent icons
+ * @number
+ *
+ * @param buttonIcon
+ * @text Button Icon
+ * @desc Icon index that shows when hovering over button events
+ * @parent icons
+ * @number
+ *
+ * @param importantIcon
+ * @text Important Icon
+ * @desc Icon index that shows when hovering over important events
+ * @parent icons
+ * @number
+ *
+ * @param trackingVariables
+ * @text Statistics Variables
+ *
+ * @param deathCount
+ * @text Death Count Variable
+ * @parent trackingVariables
+ * @type variable
+ *
+ * @param moveCount
+ * @text Move Count Variable (Unimplemented)
+ * @parent trackingVariables
+ * @type variable
+ *
+ * @param switches
+ * @text Switches (Unimplemented)
+ *
+ * @TODO add SWITCH parameters, add SE parameters
+ */
 
+const SAVE_EVENT = 5;
+const LOAD_EVENT = 6;
 
 // --- SWITCHES --- //
-const LOAD_EVENT = 6;
 const HORSE_SWITCH = 18;
 const BISHOP_SWITCH = 20;
 const ROOK_SWITCH = 19;
-
-// --- HOVER --- //
-const WALK_ICON = 31;
-const DEATH_ICON = 1;
-const PUSH_ICON = 77;
-const CONVEYOR_ICON = 82;
-const EXIT_ICON = 72;
-const BUTTON_ICON = 74;
 
 
 // --- SOUND EFFECTS --- //
@@ -53,6 +125,10 @@ const CHESS_MOVE_SE_3_NAME = "chessMOVEMENT3";
 const CHESS_MOVEMENT_SE_1 = {name: CHESS_MOVE_SE_1_NAME, volume: 90, pitch: 100};
 const CHESS_MOVEMENT_SE_2 = {name: CHESS_MOVE_SE_2_NAME, volume: 90, pitch: 100};
 const CHESS_MOVEMENT_SE_3 = {name: CHESS_MOVE_SE_3_NAME, volume: 90, pitch: 100};
+const CHESS_SLIDE_SE_1_NAME = "chessSLIDING"
+const CHESS_SLIDE_SE_2_NAME = "chessSLIDING2"
+const CHESS_SLIDE_SE_1 = {name: CHESS_SLIDE_SE_1_NAME, volume: 70, pitch: 110};
+const CHESS_SLIDE_SE_2 = {name: CHESS_SLIDE_SE_2_NAME, volume: 70, pitch: 110};
 const PIT_OPEN_SE_NAME = "pitOPEN";
 const PIT_OPEN_SE = { name: PIT_OPEN_SE_NAME, volume: 40, pitch: 110 };
 const PIT_FALL_SE_NAME = "pitFALL";
@@ -184,7 +260,7 @@ function surroundingOffsets(centralEvent, eventsToCheckFor) {
 
 const SPIKE_TIMING = 2000;
 (function() {
-  PluginManager.parameters("chess");
+  const chessParameters = PluginManager.parameters("RZ_Chess");
   let tickCounter = 0;
   let flameEvents = Array(10);
   let activeFlameTimeouts = [];
@@ -367,13 +443,25 @@ const SPIKE_TIMING = 2000;
   };
 
   Game_Map.prototype.playerDie = function (deathSoundEffect) {
-    if (!$gamePlayer.isImmune) {
       if (deathSoundEffect) {
         AudioManager.playSe(deathSoundEffect);
       }
+      const deathCountVariableId = parseInt(chessParameters.deathCount);
       $gameTemp.reserveCommonEvent(LOAD_EVENT);
-      $gameSwitches.clear();
-    }
+      function reservationPollingLoop() {
+        if ($gameTemp.isCommonEventReserved()) {
+          setTimeout(() => {
+            reservationPollingLoop();
+          }, 1000); // Poll again in 1 second
+        } else {
+          if (deathCountVariableId) {
+            $gameVariables.setValue(deathCountVariableId, $gameVariables.value(deathCountVariableId) + 1);
+            $gameTemp.reserveCommonEvent(SAVE_EVENT);
+          }
+        }
+      }
+      reservationPollingLoop();
+
   }
 
   Game_Map.prototype.updateFlameActivations = function() {
@@ -661,25 +749,37 @@ const SPIKE_TIMING = 2000;
   }
 
   function highlight(event) {
-    let hoverIcon = WALK_ICON;
+    let hoverIcon = chessParameters.walkIcon;
     if (event.isWall) {
       return;
     } else if (!!event.pushable) {
-      hoverIcon = PUSH_ICON;
+      hoverIcon = chessParameters.pushIcon;
     } else if (event.isDeadly()) {
-      hoverIcon = DEATH_ICON;
+      hoverIcon = chessParameters.deadlyIcon;
     } else if (!!event.conveyor) {
-      hoverIcon = CONVEYOR_ICON;
+      switch (event.conveyor.direction) {
+        case UP:
+          hoverIcon = chessParameters.conveyorIconUp;
+          break;
+        case DOWN:
+          hoverIcon = chessParameters.conveyorIconDown;
+          break;
+        case LEFT:
+          hoverIcon = chessParameters.conveyorIconLeft;
+          break;
+        case RIGHT:
+          hoverIcon = chessParameters.conveyorIconRight;
+      }
     } else if (!!event.isExit) {
-      hoverIcon = EXIT_ICON;
+      hoverIcon = chessParameters.exitIcon;
     } else if (!!event.button && !event.button.activated) {
-      hoverIcon = BUTTON_ICON;
+      hoverIcon = chessParameters.buttonIcon;
     }
     if (hoverIcon !== event.mouseSettings.hoverIcon) {
       event.mouseSettings.hoverIcon = hoverIcon;
       const scene = SceneManager._scene;
       if (scene instanceof Scene_Map && scene.isActive() && !$gameMessage.isBusy()) {
-        scene.checkEventsUnderMouse(TouchInput.x, TouchInput.y); // TRIGGER ICON CHANGE DETECTION
+        scene.checkEventsUnderMouse(TouchInput.x, TouchInput.y); // Triggers icon change detection
       }
     }
   }
@@ -727,22 +827,34 @@ const SPIKE_TIMING = 2000;
     }
   }
 
-  Game_Player.prototype.playChessMovementSE = function() {
-    const movementSoundEffects = [
-      CHESS_MOVEMENT_SE_1,
-      CHESS_MOVEMENT_SE_2,
-      CHESS_MOVEMENT_SE_3
-    ];
-    let randomSEIndex = getRandomInt(3);
-    AudioManager.playSe(movementSoundEffects[randomSEIndex]);
+  AudioManager.playRandomSE = function(seArray) {
+    let randomSEIndex = getRandomInt(seArray.length);
+    AudioManager.playSe(seArray[randomSEIndex]);
+  }
+
+  Game_Player.prototype.playChessMovementSE = function(sliding = false) {
+    let movementSoundEffects = [];
+    stopSEByName(CHESS_SLIDE_SE_1_NAME, true)
+    stopSEByName(CHESS_SLIDE_SE_2_NAME, true);
+    if (sliding) {
+      movementSoundEffects = [
+          CHESS_SLIDE_SE_1,
+          CHESS_SLIDE_SE_2
+      ]
+    } else {
+      movementSoundEffects = [
+        CHESS_MOVEMENT_SE_1,
+        CHESS_MOVEMENT_SE_2,
+        CHESS_MOVEMENT_SE_3
+      ];
+    }
+    AudioManager.playRandomSE(movementSoundEffects);
   }
 
   const Chess_Route_End = Game_Player.prototype.processRouteEnd;
   Game_Player.prototype.processRouteEnd = function() {
     Chess_Route_End.call(this);
-    this.highlightChessMoves();
     this.playChessMovementSE();
-    this.isImmune = false;
   }
 
   Game_Character.prototype.bishopCanMove = function(requestCoordinates) {
@@ -844,9 +956,9 @@ const SPIKE_TIMING = 2000;
       for (let i = 0; i < Math.max(Math.abs(verticalMovement), Math.abs(horizontalMovement)); i++) {
         route.list.push({code: routeCode})
       }
-
       route.list.push({code: Game_Character.ROUTE_THROUGH_OFF});
       route.list.push({code: Game_Character.ROUTE_END});
+      $gamePlayer.playChessMovementSE(true);
       this.forceMoveRoute(route);
       return true;
     }
@@ -897,7 +1009,6 @@ const SPIKE_TIMING = 2000;
       }
       list.push({code: Game_Character.ROUTE_THROUGH_OFF}, {code: Game_Character.ROUTE_END})
       const route = {list, repeat: false, skippable: false}
-      this.chessJumping = true;
       this.forceMoveRoute(route);
       return true;
     } else {
