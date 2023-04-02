@@ -703,7 +703,7 @@ const SPIKE_TIMING = 2000;
     this.checkFlameDeath();
     this.updateBoulders();
     this.updatePitTraps();
-    $gamePlayer.highlightChessMoves();
+    // $gamePlayer.highlightChessMoves();
   }
 
   const Chess_Event_Route_End = Game_Event.prototype.processRouteEnd;
@@ -716,13 +716,13 @@ const SPIKE_TIMING = 2000;
   }
 
   // ---------------------------------------- CHESS HIGHLIGHT ---------------------------------------- //
-  Game_Character.prototype.highlightChessMoves = function() {
-    let highlightFunction;
-    if ($gameSwitches.value(HORSE_SWITCH)) { highlightFunction = this.highlightKnight; }
-    else if ($gameSwitches.value(ROOK_SWITCH)) { highlightFunction = this.highlightRook; }
-    else if ($gameSwitches.value(BISHOP_SWITCH)) { highlightFunction = this.highlightBishop; }
-    if (highlightFunction) { highlightFunction.call(this) }
-  }
+  // Game_Character.prototype.highlightChessMoves = function() {
+  //   let highlightFunction;
+  //   if ($gameSwitches.value(HORSE_SWITCH)) { highlightFunction = this.highlightKnight; }
+  //   else if ($gameSwitches.value(ROOK_SWITCH)) { highlightFunction = this.highlightRook; }
+  //   else if ($gameSwitches.value(BISHOP_SWITCH)) { highlightFunction = this.highlightBishop; }
+  //   if (highlightFunction) { highlightFunction.call(this) }
+  // }
 
 
   Game_Character.prototype.isValidBishopEvent = function(event) {
@@ -811,7 +811,7 @@ const SPIKE_TIMING = 2000;
   const Chess_On_Map_Loaded = Scene_Map.prototype.onMapLoaded
   Scene_Map.prototype.onMapLoaded = function() {
     Chess_On_Map_Loaded.call(this);
-    $gamePlayer.highlightChessMoves();
+    // $gamePlayer.highlightChessMoves();
   }
 
   // ---------------------------------------- CHESS MOVEMENT ---------------------------------------- //
