@@ -127,8 +127,8 @@ const CHESS_MOVEMENT_SE_2 = {name: CHESS_MOVE_SE_2_NAME, volume: 90, pitch: 100}
 const CHESS_MOVEMENT_SE_3 = {name: CHESS_MOVE_SE_3_NAME, volume: 90, pitch: 100};
 const CHESS_SLIDE_SE_1_NAME = "chessSLIDING"
 const CHESS_SLIDE_SE_2_NAME = "chessSLIDING2"
-const CHESS_SLIDE_SE_1 = {name: CHESS_SLIDE_SE_1_NAME, volume: 70, pitch: 110};
-const CHESS_SLIDE_SE_2 = {name: CHESS_SLIDE_SE_2_NAME, volume: 70, pitch: 110};
+const CHESS_SLIDE_SE_1 = {name: CHESS_SLIDE_SE_1_NAME, volume: 90, pitch: 110};
+const CHESS_SLIDE_SE_2 = {name: CHESS_SLIDE_SE_2_NAME, volume: 90, pitch: 110};
 const PIT_OPEN_SE_NAME = "pitOPEN";
 const PIT_OPEN_SE = { name: PIT_OPEN_SE_NAME, volume: 40, pitch: 110 };
 const PIT_FALL_SE_NAME = "pitFALL";
@@ -443,6 +443,8 @@ const SPIKE_TIMING = 2000;
   };
 
   Game_Map.prototype.playerDie = function (deathSoundEffect) {
+      stopSEByName(CHESS_SLIDE_SE_1_NAME, true)
+      stopSEByName(CHESS_SLIDE_SE_2_NAME, true);
       if (deathSoundEffect) {
         AudioManager.playSe(deathSoundEffect);
       }
@@ -925,6 +927,7 @@ const SPIKE_TIMING = 2000;
 
       route.list.push({code: Game_Character.ROUTE_THROUGH_OFF});
       route.list.push({code: Game_Character.ROUTE_END});
+      $gamePlayer.playChessMovementSE(true);
       this.forceMoveRoute(route);
       return true;
     }
