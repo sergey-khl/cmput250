@@ -1,8 +1,8 @@
 [
 null,
 null,
-{"id":2,"expanded":true,"name":"Zwart Throne Room (Final)","order":21,"parentId":22,"scrollX":891.2727272727273,"scrollY":556.3636363636364},
-{"id":3,"expanded":false,"name":"Opening Cutscene","order":25,"parentId":0,"scrollX":817,"scrollY":510},
+{"id":2,"expanded":true,"name":"Zwart Throne Room (Final)","order":25,"parentId":0,"scrollX":817,"scrollY":510},
+{"id":3,"expanded":false,"name":"Opening Cutscene","order":24,"parentId":0,"scrollX":817,"scrollY":510},
 {"id":4,"expanded":true,"name":"Forest Puzzle 1","order":6,"parentId":8,"scrollX":817,"scrollY":510},
 {"id":5,"expanded":true,"name":"Zwart Throne Room","order":1,"parentId":0,"scrollX":817,"scrollY":510},
 {"id":6,"expanded":true,"name":"Intro Forest Puzzle","order":4,"parentId":8,"scrollX":817,"scrollY":510},
@@ -21,9 +21,9 @@ null,
 {"id":19,"expanded":false,"name":"Ruins Puzzle 3","order":15,"parentId":13,"scrollX":594.1818181818181,"scrollY":370.90909090909093},
 {"id":20,"expanded":false,"name":"Ruins Ending","order":16,"parentId":13,"scrollX":817,"scrollY":510},
 {"id":21,"expanded":false,"name":"Mountain Puzzle 1","order":19,"parentId":14,"scrollX":817,"scrollY":510},
-{"id":22,"expanded":false,"name":"Mountain Puzzle 2","order":20,"parentId":14,"scrollX":817,"scrollY":510},
-{"id":23,"expanded":false,"name":"Mountain Puzzle 3","order":22,"parentId":14,"scrollX":817,"scrollY":510},
+{"id":22,"expanded":true,"name":"Mountain Puzzle 2","order":20,"parentId":14,"scrollX":817,"scrollY":510},
+{"id":23,"expanded":false,"name":"Mountain Puzzle 3","order":21,"parentId":14,"scrollX":817,"scrollY":510},
 {"id":24,"expanded":false,"name":"Ruins Easter Egg","order":17,"parentId":13,"scrollX":817,"scrollY":510},
-{"id":25,"expanded":true,"name":"Mountain Ending","order":23,"parentId":14,"scrollX":817,"scrollY":510},
-{"id":26,"expanded":false,"name":"Outside Castle","order":24,"parentId":0,"scrollX":891.2727272727273,"scrollY":556.3636363636364}
+{"id":25,"expanded":true,"name":"Mountain Ending","order":22,"parentId":14,"scrollX":817,"scrollY":510},
+{"id":26,"expanded":false,"name":"Outside Castle","order":23,"parentId":0,"scrollX":891.2727272727273,"scrollY":556.3636363636364}
 ]
